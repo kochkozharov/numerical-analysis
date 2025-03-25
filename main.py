@@ -68,6 +68,40 @@ if __name__ == "__main__":
         A = construct_tridiagonal_matrix(a, b, c)
         print_matrix(A)
         print_matrix(vector_matrix_multiply(A, x))
+    elif number == 3:
+        print("Введите размер квадратной матрицы:")
+        n = int(input())
         
+        # Ввод матрицы
+        print("Введите матрицу (каждая строка через пробел):")
+        A = []
+        for i in range(n):
+            row = list(map(float, input().split()))
+            A.append(row)
+        
+        # Ввод вектора правых частей
+        print("Введите вектор правых частей:")
+        b = list(map(float, input().split()))
+
+        print("Введите точность:")
+        eps = float(input())
+
+        # Метод простых итераций (Якоби)
+        x_jacobi, iterations_jacobi = simple_iteration_method(A, b, eps)
+        print("Метод простых итераций (Якоби):")
+        print("Найденное решение:", x_jacobi)
+        print("Количество итераций:", iterations_jacobi)
+
+        print("\nПроверка решения СЛАУ:")
+        print_matrix(vector_matrix_multiply(A, x_jacobi))
+
+        # Метод Зейделя (Gauss-Seidel)
+        x_seidel, iterations_seidel = gauss_seidel_method(A, b, eps)
+        print("Метод Зейделя (Gauss–Seidel):")
+        print("Найденное решение:", x_seidel)
+        print("Количество итераций:", iterations_seidel)
+
+        print("\nПроверка решения СЛАУ:")
+        print_matrix(vector_matrix_multiply(A, x_seidel))
     else:
         raise RuntimeError("Такого задания нет")

@@ -210,3 +210,77 @@ def construct_tridiagonal_matrix(a, b, c):
         if i < n - 1:
             A[i][i + 1] = c[i]
     return A
+
+def simple_iteration_method(A, b, eps, max_iterations=10000):
+    """
+    Решает СЛАУ A*x = b методом простых итераций (метод Якоби).
+    
+    Параметры:
+      A : квадратная матрица системы (2D список)
+      b : вектор правых частей (список)
+      eps : требуемая точность (остановка итераций, когда максимальное изменение меньше eps)
+      max_iterations : максимальное число итераций (по умолчанию 10000)
+    
+    Возвращает:
+      x : найденное решение системы (список)
+      iterations : количество итераций, потребовавшихся для сходимости
+    """
+    n = len(A)
+    # Начальное приближение (нулевой вектор)
+    x_old = [0.0] * n
+    x_new = [0.0] * n
+    iterations = 0
+
+    while iterations < max_iterations:
+        for i in range(n):
+            sum_val = 0.0
+            for j in range(n):
+                if j != i:
+                    sum_val += A[i][j] * x_old[j]
+            x_new[i] = (b[i] - sum_val) / A[i][i]
+
+        # Определяем максимальное изменение между итерациями
+        diff = max(abs(x_new[i] - x_old[i]) for i in range(n))
+        iterations += 1
+        if diff < eps:
+            break
+        x_old = x_new[:]  # копирование для следующей итерации
+
+    return x_new, iterations
+
+
+def gauss_seidel_method(A, b, eps, max_iterations=10000):
+    """
+    Решает СЛАУ A*x = b методом Зейделя (Gauss–Seidel).
+    
+    Параметры:
+      A : квадратная матрица системы (2D список)
+      b : вектор правых частей (список)
+      eps : требуемая точность (остановка итераций, когда максимальное изменение меньше eps)
+      max_iterations : максимальное число итераций (по умолчанию 10000)
+    
+    Возвращает:
+      x : найденное решение системы (список)
+      iterations : количество итераций, потребовавшихся для сходимости
+    """
+    n = len(A)
+    x = [0.0] * n  # начальное приближение
+    iterations = 0
+
+    while iterations < max_iterations:
+        x_old = x[:]  # сохраняем предыдущие значения для оценки сходимости
+        for i in range(n):
+            sum1 = 0.0
+            for j in range(i):  # используем уже обновленные значения
+                sum1 += A[i][j] * x[j]
+            sum2 = 0.0
+            for j in range(i + 1, n):  # используем значения предыдущей итерации
+                sum2 += A[i][j] * x_old[j]
+            x[i] = (b[i] - sum1 - sum2) / A[i][i]
+        iterations += 1
+        diff = max(abs(x[i] - x_old[i]) for i in range(n))
+        if diff < eps:
+            break
+
+    return x, iterations
+
