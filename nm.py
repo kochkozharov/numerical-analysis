@@ -1,4 +1,4 @@
-from math import cos, sin, atan, pi, sqrt
+from math import cos, sin, atan, pi, sqrt, copysign
 
 def lu_decomposition(A):
     """
@@ -395,3 +395,122 @@ def jacobi_rotation_method(A, epsilon=1e-10, max_iterations=1000):
     eigenvectors = [[V[i][j] for i in range(n)] for j in range(n)]
     
     return eigenvalues, eigenvectors, errors
+
+
+def householder_qr(A):
+    """
+    Выполняет QR-разложение матрицы A с использованием преобразований Хаусхолдера.
+    
+    Возвращает:
+        Q - ортогональная матрица (список списков)
+        R - верхняя треугольная матрица (список списков)
+    """
+    n = len(A)
+    m = len(A[0])
+    R = [row[:] for row in A]  # Копируем исходную матрицу
+    Q = [[float(i == j) for j in range(n)] for i in range(n)]  # Единичная матрица
+
+    for k in range(min(n, m)):
+        # Вычисляем вектор для отражения
+        x = [R[i][k] for i in range(k, n)]
+        if all(abs(v) < 1e-15 for v in x):
+            continue  # Нулевой столбец, пропускаем
+        
+        alpha = -copysign(sqrt(sum(v**2 for v in x)), x[0])
+        u = [x[i] - alpha if i == 0 else x[i] for i in range(len(x))]
+        norm_u = sqrt(sum(v**2 for v in u))
+        
+        if norm_u < 1e-15:
+            continue
+        
+        u = [v / norm_u for v in u]
+
+        # Применяем отражение к R
+        for j in range(k, m):
+            # Скалярное произведение u и столбца R[j][k:]
+            dot = sum(u[i - k] * R[i][j] for i in range(k, n))
+            for i in range(k, n):
+                R[i][j] -= 2 * u[i - k] * dot
+
+        # Применяем отражение к Q
+        for j in range(n):
+            dot = sum(u[i - k] * Q[i][j] for i in range(k, n))
+            for i in range(k, n):
+                Q[i][j] -= 2 * u[i - k] * dot
+
+    # Транспонируем Q, так как преобразования накапливались в Q^T
+    Q = [[Q[i][j] for i in range(n)] for j in range(n)]
+    return Q, R
+
+def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
+    """
+    QR-алгоритм с неявными сдвигами для поиска собственных значений.
+    
+    Параметры:
+        A - исходная квадратная матрица (список списков)
+        epsilon - точность определения сходимости
+        max_iterations - максимальное число итераций
+        
+    Возвращает:
+        eigenvalues - список собственных значений (возможно комплексные)
+    """
+    n = len(A)
+    H = [row[:] for row in A]  # Приводим к форме Хессенберга (опущено для простоты)
+    
+    for _ in range(max_iterations):
+        # Проверка сходимости для поддиагональных элементов
+        converged = True
+        for i in range(n-1):
+            if abs(H[i+1][i]) > epsilon:
+                converged = False
+                break
+        if converged:
+            break
+        
+        # Неявный сдвиг (используем последний диагональный элемент)
+        mu = H[n-1][n-1]
+        for i in range(n):
+            H[i][i] -= mu
+        
+        Q, R = householder_qr(H)
+        H = matrix_multiply(R, Q)
+        
+        for i in range(n):
+            H[i][i] += mu
+    
+    # Извлекаем собственные значения (упрощенно)
+    eigenvalues = []
+    i = 0
+    while i < n:
+        if i == n-1 or abs(H[i+1][i]) < epsilon:
+            eigenvalues.append(H[i][i])
+            i += 1
+        else:
+            # Вычисляем комплексную пару для блока 2x2
+            a = H[i][i]
+            b = H[i][i+1]
+            c = H[i+1][i]
+            d = H[i+1][i+1]
+            trace = a + d
+            det = a*d - b*c
+            discr = trace**2 - 4*det
+            if discr < 0:
+                real_part = trace / 2
+                imag_part = sqrt(-discr) / 2
+                eigenvalues.append(complex(real_part, imag_part))
+                eigenvalues.append(complex(real_part, -imag_part))
+            else:
+                eigenvalues.append((trace + sqrt(discr)) / 2)
+                eigenvalues.append((trace - sqrt(discr)) / 2)
+            i += 2
+    
+    return eigenvalues
+
+def is_upper_triangular(A, epsilon):
+    """Проверяет, является ли матрица верхней треугольной с точностью epsilon."""
+    n = len(A)
+    for i in range(n):
+        for j in range(i):
+            if abs(A[i][j]) > epsilon:
+                return False
+    return True

@@ -4,7 +4,7 @@ import sys
 def print_matrix(A):
     for row in A:
         # Форматируем каждый элемент в строке с шириной 5 символов
-        print(" ".join(f"{elem:5}" for elem in row))
+        print(" ".join(f"{elem:25}" for elem in row))
 
 # Пример использования:
 if __name__ == "__main__":
@@ -30,13 +30,23 @@ if __name__ == "__main__":
         
         b = list(map(float, input().split()))
         
+        # LU-разложение для получения определителя
+        L, U, P, pivot_sign = lu_decomposition(A)
+        print("L")
+        print_matrix(L)
+        print("U")
+        print_matrix(U)
+        print("Проверка LU")
+        lu = matrix_multiply(L, U)
+        actual_A = [None]*n
+        for i, j in zip(P, range(0,n)):
+            actual_A[i] = lu[j]
+        print_matrix(actual_A)
         # Решение системы
-        x = solve_system(A, b)
+        x = lu_solve(L, U, P, b)
         print("\nРешение системы A*x = b:")
         print(x)
         
-        # LU-разложение для получения определителя
-        L, U, P, pivot_sign = lu_decomposition(A)
         det = determinant(U, pivot_sign)
         print("\nОпределитель матрицы A:")
         print(det)
@@ -96,17 +106,14 @@ if __name__ == "__main__":
         print("\nПроверка решения СЛАУ:")
         print(vector_matrix_multiply(A, x_seidel))
     elif number == 4:
-        print("Введите размер квадратной матрицы:")
         n = int(input())
         
         # Ввод матрицы
-        print("Введите матрицу (каждая строка через пробел):")
         A = []
         for i in range(n):
             row = list(map(float, input().split()))
             A.append(row)
         
-        print("Введите точность:")
         eps = float(input())
         eigenvalues, eigenvectors, error_list = jacobi_rotation_method(A, eps)
         print("Собственные значения:")
@@ -128,5 +135,15 @@ if __name__ == "__main__":
             actual = [eigenvalue * i for i in eigenvector]
             print("Ожидаемый результат: ", expected)
             print("Полученный результат: ", actual)
+    elif number == 5:
+        n = int(input())
+        A = []
+        for i in range(n):
+            row = list(map(float, input().split()))
+            A.append(row)
+        eps = float(input())
+
+        eigenvalues_A = qr_algorithm(A, epsilon=1e-12)
+        print(eigenvalues_A)
     else:
         raise RuntimeError("Такого задания нет")
