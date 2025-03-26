@@ -1,4 +1,9 @@
 from math import cos, sin, atan, pi, sqrt, copysign
+
+def print_matrix(A):
+    for row in A:
+        print(" ".join(f"{elem:25}" for elem in row))
+
 def lu_decomposition(A):
     """
     Выполняет LU-разложение матрицы A с выбором главного элемента (partial pivoting).
@@ -415,12 +420,13 @@ def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
     """
     n = len(A)
     H = [row[:] for row in A]  
-    
+    iterations = 0
     for _ in range(max_iterations):
         
         converged = True
         for i in range(n-1):
             if abs(H[i+1][i]) > epsilon:
+                iterations+=1
                 converged = False
                 break
         if converged:
@@ -432,6 +438,12 @@ def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
             H[i][i] -= mu
         
         Q, R = householder_qr(H)
+        print("Q")
+        print_matrix(Q)
+        print("R")
+        print_matrix(R)
+        print()
+        
         H = matrix_multiply(R, Q)
         
         for i in range(n):
@@ -463,7 +475,7 @@ def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
                 eigenvalues.append((trace - sqrt(discr)) / 2)
             i += 2
     
-    return eigenvalues
+    return eigenvalues, iterations
 def is_upper_triangular(A, epsilon):
     """Проверяет, является ли матрица верхней треугольной с точностью epsilon."""
     n = len(A)
@@ -472,3 +484,41 @@ def is_upper_triangular(A, epsilon):
             if abs(A[i][j]) > epsilon:
                 return False
     return True
+
+def identity_matrix(n):
+    return [[1 if i == j else 0 for j in range(n)] for i in range(n)]
+
+
+def matrix_subtraction(a, b):
+    """
+    Вычитание матриц a - b
+    :param a: первая матрица (список списков)
+    :param b: вторая матрица (список списков)
+    :return: результат вычитания (новая матрица)
+    """
+    # Проверка на совпадение размеров матриц
+    if len(a) != len(b) or len(a[0]) != len(b[0]):
+        raise ValueError("Матрицы должны быть одного размера")
+    
+    # Создаем новую матрицу для результата
+    result = []
+    for i in range(len(a)):
+        row = []
+        for j in range(len(a[0])):
+            row.append(a[i][j] - b[i][j])
+        result.append(row)
+    return result
+
+def matrix_scalar_multiplication(matrix, scalar):
+    """
+    Умножение матрицы на число
+    :param matrix: исходная матрица (список списков)
+    :param scalar: число для умножения
+    :return: новая матрица (результат умножения)
+    """
+    # Создаем новую матрицу для результата
+    result = []
+    for row in matrix:
+        new_row = [element * scalar for element in row]
+        result.append(new_row)
+    return result

@@ -1,9 +1,6 @@
 from nm import *
 import sys
-def print_matrix(A):
-    for row in A:
-        
-        print(" ".join(f"{elem:25}" for elem in row))
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Ошибка: Не указано число в аргументах!")
@@ -139,8 +136,16 @@ if __name__ == "__main__":
         eps = float(input())
         print("A")
         print_matrix(A)
-        eigenvalues_A = qr_algorithm(A, epsilon=1e-12)
+        eigenvalues_A, iterations = qr_algorithm(A, epsilon=1e-12)
         print("Собственные значения")
+        print("Проверка |A-IE|")
+        for eigenvalue in eigenvalues_A:
+            IE = matrix_scalar_multiplication(identity_matrix(n), eigenvalue)
+            res = matrix_subtraction(A,IE)
+            _, U, _, sign = lu_decomposition(res)
+            print(determinant(U, sign))
         print(eigenvalues_A)
+        print("Итерации")
+        print(iterations)
     else:
         raise RuntimeError("Такого задания нет")
