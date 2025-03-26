@@ -131,8 +131,9 @@ if __name__ == "__main__":
 
         print("\nПроверка:")
         for eigenvector, eigenvalue in zip(eigenvectors, eigenvalues):
-            res = vector_matrix_multiply(A, eigenvector)
-            res = [x / eigenvalue for x in res]
-            print(res)
+            expected = vector_matrix_multiply(A, eigenvector)
+            actual = [eigenvalue * i for i in eigenvector]
+            print("Ожидаемый результат: ", expected)
+            print("Полученный результат: ", actual)
     else:
         raise RuntimeError("Такого задания нет")
