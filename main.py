@@ -1,10 +1,10 @@
 from nm import *
 import sys
 
-
 def print_matrix(A):
     for row in A:
-        print(row)
+        # Форматируем каждый элемент в строке с шириной 5 символов
+        print(" ".join(f"{elem:5}" for elem in row))
 
 # Пример использования:
 if __name__ == "__main__":
@@ -21,18 +21,13 @@ if __name__ == "__main__":
         print("Ошибка: Аргумент должен быть числом!")
         sys.exit(1)
     if number == 1:
-        print("Введите размер квадратной матрицы:")
         n = int(input())
         
-        # Ввод матрицы
-        print("Введите матрицу (каждая строка через пробел):")
         A = []
         for i in range(n):
             row = list(map(float, input().split()))
             A.append(row)
         
-        # Ввод вектора правых частей
-        print("Введите вектор правых частей:")
         b = list(map(float, input().split()))
         
         # Решение системы
@@ -56,7 +51,7 @@ if __name__ == "__main__":
         print("\nПроверка обратной матрицы A_inv:")
         print_matrix(matrix_multiply(A,A_inv))
         print("\nПроверка решения СЛАУ:")
-        print_matrix(vector_matrix_multiply(A, x))
+        print(vector_matrix_multiply(A, x))
     elif number == 2:
         n = int(input())
         a = list(map(float, input().split()))
@@ -64,26 +59,23 @@ if __name__ == "__main__":
         c = list(map(float, input().split()))
         d = list(map(float, input().split()))
         x = thomas_algorithm(a, b, c, d)
-        print_matrix(x)
+        print("Решение системы A*x = b:")
+        print(x)
         A = construct_tridiagonal_matrix(a, b, c)
-        print_matrix(A)
-        print_matrix(vector_matrix_multiply(A, x))
+        print("Проверка решения СЛАУ:")
+        print(vector_matrix_multiply(A, x))
     elif number == 3:
-        print("Введите размер квадратной матрицы:")
         n = int(input())
         
         # Ввод матрицы
-        print("Введите матрицу (каждая строка через пробел):")
         A = []
         for i in range(n):
             row = list(map(float, input().split()))
             A.append(row)
         
         # Ввод вектора правых частей
-        print("Введите вектор правых частей:")
         b = list(map(float, input().split()))
 
-        print("Введите точность:")
         eps = float(input())
 
         # Метод простых итераций (Якоби)
@@ -93,16 +85,16 @@ if __name__ == "__main__":
         print("Количество итераций:", iterations_jacobi)
 
         print("\nПроверка решения СЛАУ:")
-        print_matrix(vector_matrix_multiply(A, x_jacobi))
+        print(vector_matrix_multiply(A, x_jacobi))
 
         # Метод Зейделя (Gauss-Seidel)
         x_seidel, iterations_seidel = gauss_seidel_method(A, b, eps)
-        print("Метод Зейделя (Gauss–Seidel):")
+        print("\nМетод Зейделя (Gauss–Seidel):")
         print("Найденное решение:", x_seidel)
         print("Количество итераций:", iterations_seidel)
 
         print("\nПроверка решения СЛАУ:")
-        print_matrix(vector_matrix_multiply(A, x_seidel))
+        print(vector_matrix_multiply(A, x_seidel))
     elif number == 4:
         print("Введите размер квадратной матрицы:")
         n = int(input())
@@ -122,14 +114,15 @@ if __name__ == "__main__":
             print(f"{val:10.6f}")
 
         print("\nСобственные векторы:")
-        print_matrix(eigenvectors)
+        for v in eigenvectors:
+            print(v)
         print(f"\nКоличество итераций: {len(error_list)-1}")
-        print("\nЗначения максимальной погрешности (вне диагонали) на каждой итерации:")
+        print("\nЗначения максимальной погрешности на каждой итерации:")
         for i, err in enumerate(error_list):
             print(f"Итерация {i:4d}: погрешность = {error_list[i]:.6e}")
         print(f"Финальная погрешность: {error_list[-1]:.6e}")
 
-        print("\nПроверка:")
+        print("\nПроверка (A*v_i == S_i*v_i):")
         for eigenvector, eigenvalue in zip(eigenvectors, eigenvalues):
             expected = vector_matrix_multiply(A, eigenvector)
             actual = [eigenvalue * i for i in eigenvector]
