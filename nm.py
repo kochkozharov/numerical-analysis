@@ -196,7 +196,7 @@ def construct_tridiagonal_matrix(a, b, c):
         if i < n - 1:
             A[i][i + 1] = c[i]
     return A
-def simple_iteration_method(A, b, eps, max_iterations=10000):
+def simple_iteration_method(A, b, eps, max_iterations=1000):
     """
     Решает СЛАУ A*x = b методом простых итераций (метод Якоби).
     
@@ -229,7 +229,7 @@ def simple_iteration_method(A, b, eps, max_iterations=10000):
             break
         x_old = x_new[:]  
     return x_new, iterations
-def gauss_seidel_method(A, b, eps, max_iterations=10000):
+def gauss_seidel_method(A, b, eps, max_iterations=1000):
     """
     Решает СЛАУ A*x = b методом Зейделя (Gauss–Seidel).
     
@@ -422,11 +422,10 @@ def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
     H = [row[:] for row in A]  
     iterations = 0
     for _ in range(max_iterations):
-        
+        iterations+=1
         converged = True
         for i in range(n-1):
             if abs(H[i+1][i]) > epsilon:
-                iterations+=1
                 converged = False
                 break
         if converged:
@@ -438,14 +437,10 @@ def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
             H[i][i] -= mu
         
         Q, R = householder_qr(H)
-        print("Q")
-        print_matrix(Q)
-        print("R")
-        print_matrix(R)
-        print()
         
         H = matrix_multiply(R, Q)
-        
+        print("QR")
+        print_matrix(H)        
         for i in range(n):
             H[i][i] += mu
     

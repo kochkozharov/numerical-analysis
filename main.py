@@ -25,6 +25,8 @@ if __name__ == "__main__":
         L, U, P, pivot_sign = lu_decomposition(A)
         print("A")
         print_matrix(A)
+        print("Правая часть")
+        print(b)
         print("L")
         print_matrix(L)
         print("U")
@@ -64,6 +66,8 @@ if __name__ == "__main__":
         print("A")
         A = construct_tridiagonal_matrix(a, b, c)
         print_matrix(A)
+        print("Правая часть")
+        print(d)
         x = thomas_algorithm(a, b, c, d)
         print("Решение системы A*x = b:")
         print(x)
@@ -82,6 +86,8 @@ if __name__ == "__main__":
         
         
         b = list(map(float, input().split()))
+        print("Правая часть")
+        print(b)
         eps = float(input())
         
         x_jacobi, iterations_jacobi = simple_iteration_method(A, b, eps)
@@ -136,14 +142,14 @@ if __name__ == "__main__":
         eps = float(input())
         print("A")
         print_matrix(A)
-        eigenvalues_A, iterations = qr_algorithm(A, epsilon=1e-12)
-        print("Собственные значения")
+        eigenvalues_A, iterations = qr_algorithm(A, epsilon=eps)
         print("Проверка |A-IE|")
         for eigenvalue in eigenvalues_A:
             IE = matrix_scalar_multiplication(identity_matrix(n), eigenvalue)
             res = matrix_subtraction(A,IE)
             _, U, _, sign = lu_decomposition(res)
             print(determinant(U, sign))
+        print("Собственные значения")
         print(eigenvalues_A)
         print("Итерации")
         print(iterations)
