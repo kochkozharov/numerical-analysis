@@ -1,3 +1,5 @@
+from math import cos, sin, atan, pi, sqrt
+
 def lu_decomposition(A):
     """
     Выполняет LU-разложение матрицы A с выбором главного элемента (partial pivoting).
@@ -284,3 +286,112 @@ def gauss_seidel_method(A, b, eps, max_iterations=10000):
 
     return x, iterations
 
+def find_max_off_diagonal(A):
+    """Находит максимальный по модулю внедиагональный элемент матрицы и возвращает его индексы (i, j)."""
+    n = len(A)
+    max_val = 0.0
+    p, q = 0, 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            if abs(A[i][j]) > max_val:
+                max_val = abs(A[i][j])
+                p, q = i, j
+    return p, q
+
+def compute_rotation(A, i, j):
+    """Вычисляет параметры вращения (cos, sin) для обнуления элемента A[i][j]."""
+    if A[i][j] == 0:
+        return 1.0, 0.0  # Нет вращения
+    
+    tau = (A[j][j] - A[i][i]) / (2 * A[i][j])
+    if tau >= 0:
+        t = 1.0 / (tau + sqrt(1 + tau**2))
+    else:
+        t = -1.0 / (-tau + sqrt(1 + tau**2))
+    
+    c = 1.0 / sqrt(1 + t**2)
+    s = t * c
+    return c, s
+
+def apply_rotation(A, c, s, i, j):
+    """Применяет вращение к матрице A для обнуления элементов A[i][j] и A[j][i]."""
+    n = len(A)
+    # Обновление элементов в строках i и j
+    for k in range(n):
+        if k != i and k != j:
+            # Элементы вне диагонали
+            a_ik = c * A[i][k] - s * A[j][k]
+            a_jk = s * A[i][k] + c * A[j][k]
+            A[i][k], A[j][k] = a_ik, a_jk
+            # Симметричные элементы
+            A[k][i], A[k][j] = a_ik, a_jk
+    
+    # Обновление диагональных элементов
+    a_ii = c**2 * A[i][i] - 2 * c * s * A[i][j] + s**2 * A[j][j]
+    a_jj = s**2 * A[i][i] + 2 * c * s * A[i][j] + c**2 * A[j][j]
+    a_ij = 0.0  # Обнуляем элемент
+    
+    A[i][i], A[j][j] = a_ii, a_jj
+    A[i][j] = A[j][i] = 0.0
+
+def update_eigenvectors(V, c, s, i, j):
+    """Обновляет матрицу собственных векторов после вращения."""
+    n = len(V)
+    for k in range(n):
+        v_ki = V[k][i]
+        v_kj = V[k][j]
+        V[k][i] = c * v_ki - s * v_kj
+        V[k][j] = s * v_ki + c * v_kj
+
+def jacobi_rotation_method(A, epsilon=1e-10, max_iterations=1000):
+    """
+    Реализация метода вращений Якоби для симметрических матриц.
+    
+    Параметры:
+        A - исходная симметрическая матрица (2D список)
+        epsilon - точность вычислений
+        max_iterations - максимальное число итераций
+    
+    Возвращает:
+        eigenvalues - список собственных значений
+        eigenvectors - матрица собственных векторов (каждый столбец - вектор)
+        errors - история изменения погрешности
+    """
+    # Проверка симметричности матрицы
+    n = len(A)
+    for i in range(n):
+        for j in range(i, n):
+            if abs(A[i][j] - A[j][i]) > 1e-12:
+                raise ValueError("Матрица не симметрична")
+    
+    # Инициализация матрицы собственных векторов
+    V = [[0.0]*n for _ in range(n)]
+    for i in range(n):
+        V[i][i] = 1.0
+    
+    A = [row[:] for row in A]  # Копия матрицы
+    errors = []
+    
+    for iteration in range(max_iterations):
+        # Находим максимальный внедиагональный элемент
+        p, q = find_max_off_diagonal(A)
+        max_off = abs(A[p][q])
+        errors.append(max_off)
+        
+        if max_off < epsilon:
+            break
+        
+        # Вычисляем параметры вращения
+        c, s = compute_rotation(A, p, q)
+        
+        # Применяем вращение к матрице
+        apply_rotation(A, c, s, p, q)
+        
+        # Обновляем собственные векторы
+        update_eigenvectors(V, c, s, p, q)
+    
+    # Извлекаем собственные значения и векторы
+    eigenvalues = [A[i][i] for i in range(n)]
+    eigenvectors = [[V[i][j] for i in range(n)] for j in range(n)]
+    
+    return eigenvalues, eigenvectors, errors

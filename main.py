@@ -103,5 +103,36 @@ if __name__ == "__main__":
 
         print("\nПроверка решения СЛАУ:")
         print_matrix(vector_matrix_multiply(A, x_seidel))
+    elif number == 4:
+        print("Введите размер квадратной матрицы:")
+        n = int(input())
+        
+        # Ввод матрицы
+        print("Введите матрицу (каждая строка через пробел):")
+        A = []
+        for i in range(n):
+            row = list(map(float, input().split()))
+            A.append(row)
+        
+        print("Введите точность:")
+        eps = float(input())
+        eigenvalues, eigenvectors, error_list = jacobi_rotation_method(A, eps)
+        print("Собственные значения:")
+        for val in eigenvalues:
+            print(f"{val:10.6f}")
+
+        print("\nСобственные векторы:")
+        print_matrix(eigenvectors)
+        print(f"\nКоличество итераций: {len(error_list)-1}")
+        print("\nЗначения максимальной погрешности (вне диагонали) на каждой итерации:")
+        for i, err in enumerate(error_list):
+            print(f"Итерация {i:4d}: погрешность = {error_list[i]:.6e}")
+        print(f"Финальная погрешность: {error_list[-1]:.6e}")
+
+        print("\nПроверка:")
+        for eigenvector, eigenvalue in zip(eigenvectors, eigenvalues):
+            res = vector_matrix_multiply(A, eigenvector)
+            res = [x / eigenvalue for x in res]
+            print(res)
     else:
         raise RuntimeError("Такого задания нет")
