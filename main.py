@@ -32,6 +32,8 @@ if __name__ == "__main__":
         
         # LU-разложение для получения определителя
         L, U, P, pivot_sign = lu_decomposition(A)
+        print("A")
+        print_matrix(A)
         print("L")
         print_matrix(L)
         print("U")
@@ -68,10 +70,12 @@ if __name__ == "__main__":
         b = list(map(float, input().split()))
         c = list(map(float, input().split()))
         d = list(map(float, input().split()))
+        print("A")
+        A = construct_tridiagonal_matrix(a, b, c)
+        print_matrix(A)
         x = thomas_algorithm(a, b, c, d)
         print("Решение системы A*x = b:")
         print(x)
-        A = construct_tridiagonal_matrix(a, b, c)
         print("Проверка решения СЛАУ:")
         print(vector_matrix_multiply(A, x))
     elif number == 3:
@@ -82,6 +86,8 @@ if __name__ == "__main__":
         for i in range(n):
             row = list(map(float, input().split()))
             A.append(row)
+        print("A")
+        print_matrix(A)
         
         # Ввод вектора правых частей
         b = list(map(float, input().split()))
@@ -113,6 +119,8 @@ if __name__ == "__main__":
         for i in range(n):
             row = list(map(float, input().split()))
             A.append(row)
+        print("A")
+        print_matrix(A)
         
         eps = float(input())
         eigenvalues, eigenvectors, error_list = jacobi_rotation_method(A, eps)
@@ -142,8 +150,11 @@ if __name__ == "__main__":
             row = list(map(float, input().split()))
             A.append(row)
         eps = float(input())
+        print("A")
+        print_matrix(A)
 
         eigenvalues_A = qr_algorithm(A, epsilon=1e-12)
+        print("Собственные значения")
         print(eigenvalues_A)
     else:
         raise RuntimeError("Такого задания нет")
