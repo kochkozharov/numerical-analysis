@@ -1,4 +1,4 @@
-from nm import *
+from nm.nm import *
 import sys
 
 if __name__ == "__main__":
