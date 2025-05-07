@@ -17,28 +17,28 @@ def lagrange_poly(X, Y):
     return P
 
 
-def newton_poly(X, Y):
-    """
-    Возвращает функцию по формуле Ньютона с узлами X и коэффициентами coeffs
-    """
+def newton_coeffs(X, Y):
     n = len(X)
-    # Заполняем таблицу разделенных разностей
-    table = [ [0]*n for _ in range(n) ]
-    for i in range(n):
-        table[i][0] = Y[i]
-    for j in range(1, n):
-        for i in range(n-j):
-            table[i][j] = (table[i+1][j-1] - table[i][j-1]) / (X[i+j] - X[i])
-    # коэффициенты — первые элементы столбцов
-    coeffs =  [ table[0][j] for j in range(n) ]
-    def P(x):
-        total = coeffs[0]
-        prod = 1
-        for j in range(1, len(coeffs)):
-            prod *= (x - X[j-1])
-            total += coeffs[j] * prod
-        return total
-    return P
+    dd = [yi for yi in Y]
+    coeffs = [dd[0]]
+    for k in range(1, n):
+        for i in range(n-k):
+            dd[i] = (dd[i+1] - dd[i]) / (X[i+k] - X[i])
+        coeffs.append(dd[0])
+    poly = [0] * n 
+    for k, c in enumerate(coeffs):
+        basis = [1]
+        for j in range(k):
+            Xi = X[j]
+            new_basis = [0] * (len(basis) + 1)
+            for i, b in enumerate(basis):
+                new_basis[i+1] += b
+                new_basis[i]   -= b * Xi 
+            basis = new_basis
+        for i, b in enumerate(basis):
+            poly[i] += c * b
+    return poly
+
 
 def interpolation_error(f, P, x_star):
     """
@@ -125,6 +125,21 @@ def poly_eval(x, coeffs):
     coeffs[0] + coeffs[1] x + coeffs[2] x^2 + ...
     """
     return sum(coeffs[j] * (x**j) for j in range(len(coeffs)))
+
+def differentiate_poly(poly, order=1):
+    """
+    Возвращает коэффициенты производной заданного порядка от многочлена.
+    poly: list или tuple коэффициентов [a0, a1, a2, ...], где P(x)=sum( ai * x^i )
+    order: порядок производной (целое >=1)
+    """
+    if order < 1:
+        raise ValueError("order must be >=1")
+    # скопируем, чтобы не мутировать исходный список
+    coeffs = list(poly)
+    for _ in range(order):
+        # вычисляем одну производную
+        coeffs = [i * coeffs[i] for i in range(1, len(coeffs))]
+    return coeffs
 
 
 def sum_squared_errors(X, Y, coeffs):

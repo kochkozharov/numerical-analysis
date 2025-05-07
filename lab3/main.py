@@ -42,7 +42,8 @@ def main():
             # Лагранж
             P_L = lagrange_poly(Xi, Yi)
             # Ньютон
-            P_N = newton_poly(Xi, Yi)
+            C_N = newton_coeffs(Xi, Yi)
+            P_N = lambda x: poly_eval(x, C_N)
             # Вычисляем погрешность в x*
             x_star = 0.8
             err_L = interpolation_error(f, P_L, x_star)
@@ -99,6 +100,45 @@ def main():
         plt.ylabel('y')
         plt.title('МНК аппроксимация')
         plt.show()
+    elif number == 4:
+        X = [0.0, 1.0, 2.0, 3.0, 5.0]
+        Y = [0.0, 2.0, 3.4142, 4.7321, 6.0]
+        X_star = 2.0
+        cf = newton_coeffs(X, Y)
+        
+        d1 = differentiate_poly(cf)
+        d2 = differentiate_poly(d1)    
+        P = lambda x: poly_eval(x, cf)
+        dP = lambda x: poly_eval(x, d1)
+        ddP = lambda x: poly_eval(x, d2)
+        
+        print(f"P({X_star})  = {P(X_star)}")
+        print(f"P'({X_star}) = {dP(X_star)}")
+        print(f"P''({X_star})= {ddP(X_star)}")
+        
+        # 5) Строим графики
+        xs  = [i*0.1 for i in range(0, 61)]
+        ys  = [P(x) for x in xs]
+        ys1  = [dP(x) for x in xs]
+        ys2  = [ddP(x) for x in xs]
+        
+        plt.figure()
+        plt.plot(xs, ys)
+        plt.title("Newton Interpolating Polynomial")
+        plt.xlabel("x"); plt.ylabel("P(x)")
+        
+        plt.figure()
+        plt.plot(xs, ys1)
+        plt.title("First Derivative P'(x)")
+        plt.xlabel("x"); plt.ylabel("P'(x)")
+        
+        plt.figure()
+        plt.plot(xs, ys2)
+        plt.title("Second Derivative P''(x)")
+        plt.xlabel("x"); plt.ylabel("P''(x)")
+        
+        plt.show()
+
     else: 
         pass
 
