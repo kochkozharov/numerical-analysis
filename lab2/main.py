@@ -24,7 +24,7 @@ def main():
 
         def phi(x):
             return (1 + x) / (exp(x) + x + 1)
-        eps = 1e-8
+        eps = int(input("Точность: "))
         x0 = 0.5
         
         root_si, errors_si = simple_iteration(phi, x0, eps)
@@ -60,7 +60,7 @@ def main():
             return [[2, sin(x2)],
                     [-exp(x1), 2]]
 
-        eps = 1e-8
+        eps = int(input("Точность: "))
         x0 = [0.5, 0.5]
 
         print("Метод простой итерации:")
