@@ -406,6 +406,7 @@ def householder_qr(A):
     
     Q = [[Q[i][j] for i in range(n)] for j in range(n)]
     return Q, R
+
 def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
     """
     QR-алгоритм с неявными сдвигами для поиска собственных значений.
@@ -419,16 +420,45 @@ def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
         eigenvalues - список собственных значений (возможно комплексные)
     """
     n = len(A)
-    H = [row[:] for row in A]  
+
+    if n == 1:
+        return [complex(A[0][0])], 0
+
+    if n == 2:
+        a, b = A[0][0], A[0][1]
+        c, d = A[1][0], A[1][1]
+        tr = a + d
+        det = a * d - b * c
+        discr = tr * tr - 4 * det
+        if discr >= 0:
+            sqrt_d = sqrt(discr)
+            return [(tr + sqrt_d) / 2, (tr - sqrt_d) / 2], 0
+        else:
+            real, imag = tr / 2, sqrt(-discr) / 2
+            return [complex(real, imag), complex(real, -imag)], 0
+
+    H = [row[:] for row in A]
+    prev_discriminants = []
     iterations = 0
+
     for _ in range(max_iterations):
         iterations+=1
-        converged = True
-        for i in range(n-1):
-            if abs(H[i+1][i]) > epsilon:
-                converged = False
-                break
-        if converged:
+        res = []
+        curr_discriminants = [None]*(n-1)
+        for i in range(n - 1):
+            a, b = H[i][i], H[i][i+1]
+            c, d = H[i+1][i], H[i+1][i+1]
+            tr = a + d
+            det = a * d - b * c
+            disc = tr * tr - 4 * det
+            if disc < 0:
+                curr_discriminants[i] = disc
+                if prev_discriminants and prev_discriminants[i]:
+                    res.append(abs(prev_discriminants[i] - disc) < epsilon)
+            else:
+                res.append(abs(H[i+1][i]) < epsilon)
+        prev_discriminants = curr_discriminants
+        if res and all(res):
             break
         
         
@@ -471,14 +501,6 @@ def qr_algorithm(A, epsilon=1e-10, max_iterations=500):
             i += 2
     
     return eigenvalues, iterations
-def is_upper_triangular(A, epsilon):
-    """Проверяет, является ли матрица верхней треугольной с точностью epsilon."""
-    n = len(A)
-    for i in range(n):
-        for j in range(i):
-            if abs(A[i][j]) > epsilon:
-                return False
-    return True
 
 def identity_matrix(n):
     return [[1 if i == j else 0 for j in range(n)] for i in range(n)]

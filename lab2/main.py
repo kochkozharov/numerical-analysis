@@ -23,7 +23,7 @@ def main():
             return exp(x) * (1 + x) + 2*x
 
         def phi(x):
-            return (1 + x) / (exp(x) + x + 1)
+            return 1  / (exp(x) + x)
         eps = float(input("Точность: "))
         x0 = 0.5
         
@@ -33,6 +33,8 @@ def main():
         # Вывод результатов
         print(f"Простой итерации: корень ≈ {root_si:.12f}, итераций: {len(errors_si)}")
         print(f"Ньютона:           корень ≈ {root_newton:.12f}, итераций: {len(errors_newton)}")
+        print(f"Проверка: {f(root_si)}")
+        print(f"Проверка: {f(root_newton)}")
         
         plt.figure()
         plt.semilogy(range(1, len(errors_si)+1), errors_si, marker='o', label='Простая итерация')
@@ -68,12 +70,14 @@ def main():
         for i, (x, e) in enumerate(zip(xs_si[1:], err_si), 1):
             print(f" итерация {i}: x = {x}, погрешность = {e}")
         print("Решение SI:", xs_si[-1])
+        print("Проверка SI:", f2(xs_si[-1]))
 
         print("\nМетод Ньютона:")
         xs_n, err_n = generalized_newton(f2, jac2, x0, eps)
         for i, (x, e) in enumerate(zip(xs_n[1:], err_n), 1):
             print(f" итерация {i}: x = {x}, погрешность = {e}")
         print("Решение Ньютона:", xs_n[-1])
+        print("Проверка Ньютона:", f2(xs_n[-1]))
         plt.figure()
         plt.plot(range(1, len(err_si)+1), err_si, label='Simple Iteration')
         plt.plot(range(1, len(err_n)+1), err_n, label='Newton')

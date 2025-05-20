@@ -45,7 +45,6 @@ def generalized_simple_iteration(phi, x0, tol, max_iter=100):
     for k in range(1, max_iter+1):
         x_prev = xs[-1]
         x_new = phi(x_prev)
-        # вычисляем бесконечную норму разности
         err = max(abs(x_new[i] - x_prev[i]) for i in range(n))
         xs.append(x_new[:])
         errors.append(err)
