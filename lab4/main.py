@@ -75,6 +75,14 @@ def main():
 
 
     elif number == 2:
+
+        def print_comparison_table(xs, ys, y_exact_func):
+            print(f"{'x':>10} | {'y числ.':>15} | {'y точн.':>15} | {'|ошибка|':>12}")
+            print("-" * 60)
+            for x, y_num in zip(xs, ys):
+                y_true = y_exact_func(x)
+                error = abs(y_num - y_true)
+                print(f"{x:10.5f} | {y_num:15.8f} | {y_true:15.8f} | {error:12.2e}")
         a, b = 0, math.pi/6
         ya = 2
         yb = 2.5 - 0.5 * math.log(3)
@@ -91,6 +99,7 @@ def main():
         xs_s2, ys_s2 = shooting(a, b, ya, yb, 2*N, F)
         err_s = max_error(ys_s, y_exact, xs_s)
         rr_s = runge_romberg(ys_s, ys_s2, p=4)
+        print_comparison_table(xs_s, ys_s, y_exact)
         print(f"Shooting: max error = {err_s:.2e}, Runge-Romberg = {rr_s:.2e}")
 
         # Finite difference with p,q,g
@@ -102,6 +111,7 @@ def main():
         xs_f2, ys_f2 = finite_difference(a, b, ya, yb, 2*N, p, q, g)
         err_f = max_error(ys_f, y_exact, xs_f)
         rr_f = runge_romberg(ys_f, ys_f2, p=2)
+        print_comparison_table(xs_f, ys_f, y_exact)
         print(f"Finite Difference: max error = {err_f:.2e}, Runge-Romberg = {rr_f:.2e}")
     else: 
         pass
