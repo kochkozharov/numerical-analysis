@@ -2,18 +2,32 @@ from nm.nm import solve_system
 
 def lagrange_poly(X, Y):
     """
-    Возвращает функцию интерполяции Лагранжа на узлах (X, Y)
+    Возвращает функцию интерполяции Лагранжа на узлах (X, Y),
+    а также печатает члены полинома в стандартной форме при создании.
     """
+    n = len(X)
+    term_expr = "P(x) = "
+    for i in range(n):
+        term = f"{Y[i]}"
+        for j in range(n):
+            if j != i:
+                term += f" * (x - {X[j]})/({X[i]} - {X[j]})"
+        if i < n - 1:
+            term += " + "
+        term_expr += term
+    print("Многочлен Лагранжа в стандартной форме:")
+    print(term_expr)
+
     def P(x):
         total = 0
-        n = len(X)
         for i in range(n):
-            term = Y[i]
+            term_value = Y[i]
             for j in range(n):
                 if j != i:
-                    term *= (x - X[j]) / (X[i] - X[j])
-            total += term
+                    term_value *= (x - X[j]) / (X[i] - X[j])
+            total += term_value
         return total
+
     return P
 
 
@@ -25,6 +39,12 @@ def newton_coeffs(X, Y):
         for i in range(n-k):
             dd[i] = (dd[i+1] - dd[i]) / (X[i+k] - X[i])
         coeffs.append(dd[0])
+    print("Многочлен Ньютона в стандартной форме:")
+    terms = [f"{coeffs[0]:.6g}"]
+    for k in range(1, len(coeffs)):
+        basis = "".join([f"(x - {X[j]})" for j in range(k)])
+        terms.append(f"{coeffs[k]:+.6g}{basis}")
+    print("P(x) = " + " ".join(terms))
     poly = [0] * n 
     for k, c in enumerate(coeffs):
         basis = [1]
