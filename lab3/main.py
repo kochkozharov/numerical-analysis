@@ -138,6 +138,44 @@ def main():
         plt.xlabel("x"); plt.ylabel("P''(x)")
         
         plt.show()
+    elif number == 5:
+        def f(x):
+            return x**2 / (x**4 + 256)
+        a = 0
+        b = 2
+        h1 = 0.5
+        h2 = 0.25
+        k = int(h1 / h2)
+
+        # Метод прямоугольников
+        I_rect1 = rectangle_method(f, a, b, h1)
+        I_rect2 = rectangle_method(f, a, b, h2)
+        err_rect = runge_romberg(I_rect1, I_rect2, k, 1)
+
+        # Метод трапеций
+        I_trap1 = trapezoid_method(f, a, b, h1)
+        I_trap2 = trapezoid_method(f, a, b, h2)
+        err_trap = runge_romberg(I_trap1, I_trap2, k, 2)
+
+        # Метод Симпсона
+        I_simp1 = simpson_method(f, a, b, h1)
+        I_simp2 = simpson_method(f, a, b, h2)
+        err_simp = runge_romberg(I_simp1, I_simp2, k, 4)
+
+        print("Метод прямоугольников:")
+        print(f"  h = {h1}: {I_rect1}")
+        print(f"  h = {h2}: {I_rect2}")
+        print(f"  Погрешность: {err_rect}\n")
+
+        print("Метод трапеций:")
+        print(f"  h = {h1}: {I_trap1}")
+        print(f"  h = {h2}: {I_trap2}")
+        print(f"  Погрешность: {err_trap}\n")
+
+        print("Метод Симпсона:")
+        print(f"  h = {h1}: {I_simp1}")
+        print(f"  h = {h2}: {I_simp2}")
+        print(f"  Погрешность: {err_simp}\n")
 
     else: 
         pass

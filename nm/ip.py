@@ -167,3 +167,38 @@ def sum_squared_errors(X, Y, coeffs):
     Вычисляет сумму квадратов отклонений между данными и полиномом
     """
     return sum((Y[i] - poly_eval(X[i], coeffs))**2 for i in range(len(X)))
+
+
+def rectangle_method(f, a, b, h):
+    n = int((b - a) / h)
+    result = 0
+    for i in range(n):
+        x = a + i * h
+        result += f(x)
+    return result * h
+
+def trapezoid_method(f, a, b, h):
+    n = int((b - a) / h)
+    result = (f(a) + f(b)) / 2
+    for i in range(1, n):
+        x = a + i * h
+        result += f(x)
+    return result * h
+
+def simpson_method(f, a, b, h):
+    n = int((b - a) / h)
+    if n % 2 != 0:
+        n += 1
+        h = (b - a) / n
+
+    result = f(a) + f(b)
+    for i in range(1, n):
+        x = a + i * h
+        if i % 2 == 0:
+            result += 2 * f(x)
+        else:
+            result += 4 * f(x)
+    return result * h / 3
+
+def runge_romberg(I1, I2, k, p):
+    return abs(I2 - I1) / (k**p - 1)
