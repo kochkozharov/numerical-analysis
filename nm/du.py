@@ -1,6 +1,6 @@
 # Преобразование задачи второго порядка в систему первого порядка
 # Метод Эйлера для системы y' = F(x, y)
-def euler_system(F, x0, y0, h, n):
+def euler(F, x0, y0, h, n):
     x = x0
     y = y0[:]
     xs, ys = [x], [y[:]]
@@ -10,7 +10,8 @@ def euler_system(F, x0, y0, h, n):
         x += h
         xs.append(x)
         ys.append(y[:])
-    return xs, ys
+    ys_scalar = [y[0] for y in ys]
+    return xs, ys_scalar
 
 # Метод Рунге-Кутты 4-го порядка для системы y' = F(x, y)
 def rk4_system(F, x0, y0, h, n):
@@ -28,6 +29,11 @@ def rk4_system(F, x0, y0, h, n):
         ys.append(y[:])
     return xs, ys
 
+def rk4(F, x0, y0, h, n):
+    xs, ys = rk4_system(F, x0, y0, h, n)
+    ys_scalar = [y[0] for y in ys]
+    return xs, ys_scalar
+
 # Предиктор-Корректор Адамса 4-го порядка (ABM)
 def adams_4(F, x0, y0, h, n):
     # старт 3 шагами RK4
@@ -43,7 +49,8 @@ def adams_4(F, x0, y0, h, n):
         y_next = [y_i[j] + (h/24)*(9*f_ip1[j] + 19*f_vals[3][j] - 5*f_vals[2][j] + f_vals[1][j]) for j in range(len(y0))]
         xs.append(x_i + h)
         ys.append(y_next)
-    return xs, ys
+        ys_scalar = [y[0] for y in ys]
+    return xs, ys_scalar
 
 
 def rk4_step(x, y1, y2, h, F):
@@ -144,24 +151,3 @@ def max_error(y_num, y_exact, xs):
 
 def runge_romberg(y_h, y_h2, p):
     return max(abs((y_h2[2*i] - y_h[i]) / (2**p - 1)) for i in range(len(y_h)))
-
-def runge_romberg_grid(Y_h, Y_h2, p):
-    """
-    Возвращает:
-      - список векторов corrections δ_i,
-      - список векторов уточнённого решения Y^RR_i
-    в тех узлах, которые совпадают (каждый 2-й узел тонкой сетки).
-    """
-    factor = 2**p - 1
-    n = len(Y_h)
-    corrections = []
-    Y_rr = []
-    for i in range(n):
-        Y_coarse = Y_h[i]
-        Y_fine   = Y_h2[2*i]
-        # вектор поправок
-        delta = [(Y_fine[k] - Y_coarse[k]) / factor
-                 for k in range(len(Y_coarse))]
-        corrections.append(delta)
-        # уточнённое решение
-    return corrections

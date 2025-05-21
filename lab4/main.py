@@ -2,7 +2,6 @@ from nm.du import *
 import sys
 import math
 
-
 def main():
 
     if len(sys.argv) < 2:
@@ -33,27 +32,38 @@ def main():
 
         # Получаем решения для шагов h и h/2
         methods = [
-            ("Euler", euler_system, 1),
-            ("RK4", rk4_system, 4),
+            ("Euler", euler, 1),
+            ("RK4", rk4, 4),
             ("Adams4", adams_4, 4)
         ]
         results = {}
         for name, method, p in methods:
             xs_h, ys_h = method(lambda x, y: [y[1], f(x, y[0], y[1])], x0, y0, h, n)
+            print(f"\n=== Метод: {name} ===")
+            print(f"{'i':>2} {'x_i':>8} {' y1_i':>12} {' Δy1_i':>12} {' exact':>12} {' err':>12}")
+            print("-"*(2+1+8+1+12+1+12+1+12+1+12))
+
+            # Печатаем узлы и приращения
+            prev_y1, prev_y2 = 0.0, 0.0
+            for i, (x, y) in enumerate(zip(xs_h, ys_h)):
+                y1 = y
+                dy1 = y1 - prev_y1 if i > 0 else 0.0
+                exact = y_exact(x)
+                err = abs(exact - y1)
+                print(f"{i:2d} {x:8.4f} {y1:12.6f} {dy1:12.6f} {exact:12.6f} {err:12.9f}")
+
+                prev_y1 = y1
             xs_h2, ys_h2 = method(lambda x, y: [y[1], f(x, y[0], y[1])], x0, y0, h/2, int((x_end-x0)/(h/2)))
             # Рунге-Ромберга в конечной точке
-            corrections = runge_romberg_grid(ys_h, ys_h2, p)
-
-            rr_err = max(max(abs(d) for d in delta) for delta in corrections)
+            rr_err = runge_romberg(ys_h, ys_h2, p)
 
             # Погрешность сравнения с точным решением
-            abs_errs = [abs(ys_h[i][0] - y_exact(xs_h[i])) for i in range(len(xs_h))]
-            max_err = max(abs_errs)
-            yh = ys_h[-1][0]
+            abs_errs = max_error(ys_h, y_exact, xs_h)
+            yh = ys_h[-1]
             results[name] = {
                 "y_end": yh,
                 "rr_error": rr_err,
-                "max_abs_error": max_err
+                "max_abs_error": abs_errs
             }
 
         # Вывод результатов
