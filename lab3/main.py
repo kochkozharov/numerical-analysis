@@ -60,19 +60,89 @@ def main():
 
         # Строим сплайн
         a, b, c, d = compute_natural_cubic_spline(X, Y)
+        
+        # Выводим параметры сплайна
+        print("Параметры сплайна:")
+        for i in range(len(X)-1):
+            print(f"Отрезок [{X[i]}, {X[i+1]}]:")
+            print(f"  a[{i}] = {a[i]:.6f}")
+            print(f"  b[{i}] = {b[i]:.6f}")
+            print(f"  c[{i}] = {c[i]:.6f}")
+            print(f"  d[{i}] = {d[i]:.6f}")
 
         # Вычисляем в x*
         y_star = spline_eval(x_star, X, a, b, c, d)
         print(f"Сплайн в x*={x_star}: {y_star:.6f}")
 
+        # Функции для вычисления первой и второй производных сплайна
+        def spline_derivative1(x, X, b, c, d):
+            # находим i, что x в [X[i], X[i+1]]
+            n = len(b)
+            for i in range(n):
+                x_left, x_right = X[i], X[i+1]
+                if (x_left <= x < x_right) or (i == n-1 and x == x_right):
+                    dx = x - x_left
+                    return b[i] + 2*c[i]*dx + 3*d[i]*dx**2
+            # Обработка случая, когда x вне диапазона узлов
+            if x < X[0]:
+                return b[0]  # Используем значение производной в левой границе
+            if x >= X[-1]:
+                i = n - 1  # Последний отрезок
+                dx = X[-1] - X[-2]  # Используем последний интервал
+                return b[i] + 2*c[i]*dx + 3*d[i]*dx**2  # Значение на правой границе
+            return 0
+
+        def spline_derivative2(x, X, c, d):
+            # находим i, что x в [X[i], X[i+1]]
+            n = len(c)
+            for i in range(n):
+                x_left, x_right = X[i], X[i+1]
+                if (x_left <= x < x_right) or (i == n-1 and x == x_right):
+                    dx = x - x_left
+                    return 2*c[i] + 6*d[i]*dx
+            # Обработка случая, когда x вне диапазона узлов
+            if x < X[0]:
+                return 2*c[0]  # Используем значение второй производной в левой границе
+            if x >= X[-1]:
+                i = n - 1  # Последний отрезок
+                dx = X[-1] - X[-2]  # Используем последний интервал
+                return 2*c[i] + 6*d[i]*dx  # Значение на правой границе
+            return 0
+
         # График
         xs = [X[0] + i*(X[-1] - X[0])/200 for i in range(201)]
         ys = [spline_eval(x, X, a, b, c, d) for x in xs]
-        plt.figure()
-        plt.plot(xs, ys, label='Spline')
-        plt.scatter(X, Y, c='red', label='Nodes')
+        ys_d1 = [spline_derivative1(x, X, b, c, d) for x in xs]
+        ys_d2 = [spline_derivative2(x, X, c, d) for x in xs]
+        
+        # График сплайна
+        plt.figure(figsize=(10, 4))
+        plt.subplot(1, 3, 1)
+        plt.plot(xs, ys, label='Сплайн S(x)')
+        plt.scatter(X, Y, c='red', label='Узлы')
         plt.scatter([x_star], [y_star], c='green', label='x*')
         plt.legend()
+        plt.title('Кубический сплайн')
+        
+        # График первой производной
+        plt.subplot(1, 3, 2)
+        plt.plot(xs, ys_d1, label='S\'(x)')
+        # Значения первой производной в узлах
+        Y_d1 = [spline_derivative1(x, X, b, c, d) for x in X]
+        plt.scatter(X, Y_d1, c='red', label='Узлы')
+        plt.legend()
+        plt.title('Первая производная')
+        
+        # График второй производной
+        plt.subplot(1, 3, 3)
+        plt.plot(xs, ys_d2, label='S\'\'(x)')
+        # Значения второй производной в узлах
+        Y_d2 = [spline_derivative2(x, X, c, d) for x in X]
+        plt.scatter(X, Y_d2, c='red', label='Узлы')
+        plt.legend()
+        plt.title('Вторая производная')
+        
+        plt.tight_layout()
         plt.show()
     elif number == 3:
         X = [0.1, 0.5, 0.9, 1.3, 1.7, 2.1]
