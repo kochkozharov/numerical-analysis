@@ -88,7 +88,6 @@ def main():
         yb = 2.5 - 0.5 * math.log(3)
         N = 20
 
-        # Define ODE y'' = tan(x)*y' - 2*y
         def F(x, y, dy):
             return dy, math.tan(x)*dy - 2*y
         def y_exact(x):
@@ -100,6 +99,7 @@ def main():
         err_s = max_error(ys_s, y_exact, xs_s)
         rr_s = runge_romberg(ys_s, ys_s2, p=4)
         print_comparison_table(xs_s, ys_s, y_exact)
+        print_comparison_table(xs_s2, ys_s2, y_exact)
         print(f"Shooting: max error = {err_s:.2e}, Runge-Romberg = {rr_s:.2e}")
 
         # Finite difference with p,q,g

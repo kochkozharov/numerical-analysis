@@ -69,7 +69,7 @@ def rk4_step(x, y1, y2, h, F):
     return y1_new, y2_new
 
 # Общий метод стрельбы
-def shooting(a, b, ya, yb, N, F, tol=1e-6, max_iter=50):
+def shooting(a, b, ya, yb, N, F, tol=1e-18, max_iter=50):
     """
     Решение краевой задачи y(a)=ya, y(b)=yb методом стрельбы.
     F(x,y,y') задает правую часть системы (y', y'').
@@ -120,7 +120,6 @@ def finite_difference(a, b, ya, yb, N, p, q, g):
     B[0], D[0] = 1, ya
     B[N], D[N] = 1, yb
 
-    # Внутренние узлы: натуральная конечно-разностная аппроксимация
     for i in range(1, N):
         x = xs[i]
         # Центральные разности:
@@ -131,7 +130,6 @@ def finite_difference(a, b, ya, yb, N, p, q, g):
         C[i] = 1/h**2 + p(x)/(2*h)
         D[i] = g(x)
 
-    # Решение системы трехдиагональной матрицы алгоритмом Томаса
     alpha = [0]*(N+1)
     beta = [0]*(N+1)
     alpha[0], beta[0] = 0, ya
