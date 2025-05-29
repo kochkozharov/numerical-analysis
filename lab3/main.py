@@ -154,6 +154,21 @@ def main():
             err = sum_squared_errors(X, Y, coeffs)
             results[deg] = (coeffs, err)
             print(f"Степень {deg}: coeffs = {coeffs}, SSE = {err:.6f}")
+            
+            # Подробный вывод коэффициентов многочлена
+            print(f"Полином степени {deg}:")
+            poly_str = " + ".join([f"{coeffs[i]:.6f} * x^{i}" for i in range(len(coeffs))])
+            poly_str = poly_str.replace("x^0", "1").replace(" + -", " - ")
+            print(f"P(x) = {poly_str}")
+            
+            # Вычисляем значения в узлах и отклонения
+            print(f"Значения в узлах и отклонения:")
+            print(f"{'x':<10} {'y(факт)':<15} {'P(x)':<15} {'Отклонение':<15}")
+            for i in range(len(X)):
+                p_val = poly_eval(X[i], coeffs)
+                err_val = Y[i] - p_val
+                print(f"{X[i]:<10.4f} {Y[i]:<15.6f} {p_val:<15.6f} {err_val:<15.6f}")
+            print()
 
         # Построение графиков
         xs = [X[0] + i*(X[-1]-X[0])/300 for i in range(301)]
