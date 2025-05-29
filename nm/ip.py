@@ -15,8 +15,6 @@ def lagrange_poly(X, Y):
         if i < n - 1:
             term += " + "
         term_expr += term
-    print("Многочлен Лагранжа в стандартной форме:")
-    print(term_expr)
 
     def P(x):
         total = 0
@@ -28,7 +26,7 @@ def lagrange_poly(X, Y):
             total += term_value
         return total
 
-    return P
+    return P, term_expr
 
 
 def newton_coeffs(X, Y):
@@ -39,12 +37,11 @@ def newton_coeffs(X, Y):
         for i in range(n-k):
             dd[i] = (dd[i+1] - dd[i]) / (X[i+k] - X[i])
         coeffs.append(dd[0])
-    print("Многочлен Ньютона в стандартной форме:")
     terms = [f"{coeffs[0]:.6g}"]
     for k in range(1, len(coeffs)):
         basis = "".join([f"(x - {X[j]})" for j in range(k)])
         terms.append(f"{coeffs[k]:+.6g}{basis}")
-    print("P(x) = " + " ".join(terms))
+    term_expr = "P(x) = " + " ".join(terms)
     poly = [0] * n 
     for k, c in enumerate(coeffs):
         basis = [1]
@@ -57,7 +54,7 @@ def newton_coeffs(X, Y):
             basis = new_basis
         for i, b in enumerate(basis):
             poly[i] += c * b
-    return poly
+    return poly, term_expr
 
 
 def interpolation_error(f, P, x_star):
