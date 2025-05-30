@@ -69,7 +69,7 @@ def rk4_step(x, y1, y2, h, F):
     return y1_new, y2_new
 
 # Общий метод стрельбы
-def shooting(a, b, ya, yb, N, F, tol=1e-18, max_iter=50):
+def shooting(a, b, ya, yb, N, F, tol=1e-6, max_iter=50):
     """
     Решение краевой задачи y(a)=ya, y(b)=yb методом стрельбы.
     F(x,y,y') задает правую часть системы (y', y'').
@@ -85,7 +85,9 @@ def shooting(a, b, ya, yb, N, F, tol=1e-18, max_iter=50):
     # Секущая для подбора начального y'(a)
     m0, m1 = 0.0, 1.0
     f0, f1 = shoot(m0) - yb, shoot(m1) - yb
+    iters = 0
     for _ in range(max_iter):
+        iters += 1
         if abs(f1 - f0) < 1e-12: break
         m2 = m1 - f1 * (m1 - m0) / (f1 - f0)
         f2 = shoot(m2) - yb
@@ -103,7 +105,7 @@ def shooting(a, b, ya, yb, N, F, tol=1e-18, max_iter=50):
         y1, y2 = rk4_step(x, y1, y2, h, F)
         x += h
         ys.append(y1)
-    return xs, ys
+    return xs, ys, iters
 
 # Конечно-разностный метод для y'' + p(x)y' + q(x)y = g(x)
 def finite_difference(a, b, ya, yb, N, p, q, g):

@@ -1,6 +1,8 @@
 from nm.du import *
 import sys
 import math
+import matplotlib.pyplot as plt
+import numpy as np
 
 def main():
 
@@ -36,6 +38,14 @@ def main():
             ("RK4", rk4, 4),
             ("Adams4", adams_4, 4)
         ]
+        
+        # Создаем график для сравнения методов
+        plt.figure(figsize=(12, 8))
+        # Добавляем точное решение (для сравнения)
+        x_exact = np.linspace(x0, x_end, 100)
+        y_exact_values = [y_exact(x) for x in x_exact]
+        plt.plot(x_exact, y_exact_values, 'k-', linewidth=2, label='Точное решение')
+        
         results = {}
         for name, method, p in methods:
             xs_h, ys_h = method(lambda x, y: [y[1], f(x, y[0], y[1])], x0, y0, h, n)
@@ -65,13 +75,23 @@ def main():
                 "rr_error": rr_err,
                 "max_abs_error": abs_errs
             }
+            
+            # Добавляем линию метода на график
+            plt.plot(xs_h, ys_h, 'o-', label=f'{name}')
 
         # Вывод результатов
         print("Метод   | RR-оценка          | Max abs error vs exact")
         for name in results:
             r = results[name]
             print(f"{name:<7} | {r['rr_error']:.9e}    | {r['max_abs_error']:.9e}")
-
+            
+        # Настройка графика для первой задачи
+        plt.title('Сравнение методов решения ОДУ 2-го порядка')
+        plt.xlabel('x')
+        plt.ylabel('y(x)')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
 
 
     elif number == 2:
@@ -93,14 +113,28 @@ def main():
         def y_exact(x):
            return math.sin(x) + 2 - math.sin(x) * math.log((1 + math.sin(x)) / (1 - math.sin(x)))
 
+        # Создаем график для сравнения методов
+        plt.figure(figsize=(12, 8))
+        
+        # Добавляем точное решение (для сравнения)
+        x_exact = np.linspace(a, b, 100)
+        y_exact_values = [y_exact(x) for x in x_exact]
+        plt.plot(x_exact, y_exact_values, 'k-', linewidth=2, label='Точное решение')
+
         # Shooting
-        xs_s, ys_s = shooting(a, b, ya, yb, N, F)
-        xs_s2, ys_s2 = shooting(a, b, ya, yb, 2*N, F)
+        xs_s, ys_s, iters_s = shooting(a, b, ya, yb, N, F)
+        xs_s2, ys_s2, iters_s2 = shooting(a, b, ya, yb, 2*N, F)
         err_s = max_error(ys_s, y_exact, xs_s)
         rr_s = runge_romberg(ys_s, ys_s2, p=4)
         print_comparison_table(xs_s, ys_s, y_exact)
         print_comparison_table(xs_s2, ys_s2, y_exact)
         print(f"Shooting: max error = {err_s:.2e}, Runge-Romberg = {rr_s:.2e}")
+        print(f"Shooting: iterations {N} = {iters_s}")
+        print(f"Shooting: iterations {2*N} = {iters_s2}")
+        
+        # Добавляем метод стрельбы на график
+        plt.plot(xs_s, ys_s, 'o-', label=f'Метод стрельбы (N={N})')
+        plt.plot(xs_s2, ys_s2, 's-', label=f'Метод стрельбы (N={2*N})')
 
         # Finite difference with p,q,g
         def p(x): return -math.tan(x)
@@ -113,6 +147,31 @@ def main():
         rr_f = runge_romberg(ys_f, ys_f2, p=2)
         print_comparison_table(xs_f, ys_f, y_exact)
         print(f"Finite Difference: max error = {err_f:.2e}, Runge-Romberg = {rr_f:.2e}")
+        
+        # Добавляем конечно-разностный метод на график
+        plt.plot(xs_f, ys_f, 'x-', label=f'Конечно-разностный метод (N={N})')
+        plt.plot(xs_f2, ys_f2, 'd-', label=f'Конечно-разностный метод (N={2*N})')
+        
+        # Настройка графика для второй задачи
+        plt.title('Сравнение методов решения краевой задачи')
+        plt.xlabel('x')
+        plt.ylabel('y(x)')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+        
+        # График ошибок
+        plt.figure(figsize=(12, 8))
+        errors_s = [abs(y - y_exact(x)) for x, y in zip(xs_s, ys_s)]
+        errors_f = [abs(y - y_exact(x)) for x, y in zip(xs_f, ys_f)]
+        plt.semilogy(xs_s, errors_s, 'o-', label=f'Ошибка метода стрельбы (N={N})')
+        plt.semilogy(xs_f, errors_f, 'x-', label=f'Ошибка конечно-разностного метода (N={N})')
+        plt.title('Сравнение ошибок методов')
+        plt.xlabel('x')
+        plt.ylabel('|ошибка|')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
     else: 
         pass
 
