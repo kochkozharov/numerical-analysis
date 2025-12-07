@@ -1,10 +1,10 @@
 """
-Лабораторная работа 6: Численные методы решения гиперболических уравнений
+Лабораторная работа 2: Численные методы решения гиперболических уравнений
 Вариант 9
 
 Уравнение: ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u + sin(x) exp(-t)
 Граничные условия: u(0,t) = exp(-t), u(π,t) = -exp(-t)
-Начальные условия: u(x,0) = cos(x), u_t(x,0) = -cos(x)
+Начальные условия: u(x,0) = cos(x), ∂u/∂t(x,0) = -cos(x)
 Аналитическое решение: U(x,t) = exp(-t) cos(x)
 """
 
@@ -18,12 +18,6 @@ import os
 # Параметры задачи
 # ============================================================================
 
-# Параметры уравнения (вариант 10)
-# ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u - cos(x) exp(-t)
-ALPHA = 3.0  # коэффициент при ∂u/∂t
-BETA = 1.0   # коэффициент при ∂u/∂x
-GAMMA = -1.0  # коэффициент при u
-
 # Область решения
 X_MIN = 0.0
 X_MAX = np.pi
@@ -31,7 +25,7 @@ T_MAX = 1.0
 
 
 # ============================================================================
-# Аналитическое решение и функции граничных/начальных условий
+# Аналитическое решение и функции граничных условий
 # ============================================================================
 
 def analytical_solution(x: np.ndarray, t: float) -> np.ndarray:
@@ -55,249 +49,97 @@ def initial_condition_u(x: np.ndarray) -> np.ndarray:
 
 
 def initial_condition_ut(x: np.ndarray) -> np.ndarray:
-    """Второе начальное условие: u_t(x,0) = -cos(x)"""
+    """Второе начальное условие: ∂u/∂t(x,0) = -cos(x)"""
     return -np.cos(x)
 
 
 def source_term(x: np.ndarray, t: float) -> np.ndarray:
-    """Правая часть уравнения: sin(x) exp(-t)"""
+    """Источник: sin(x) exp(-t)"""
     return np.sin(x) * np.exp(-t)
 
 
 # ============================================================================
-# Аппроксимации граничных условий
+# Аппроксимации второго начального условия
+# ============================================================================
+
+def approximate_second_ic_first_order(
+    u_prev: np.ndarray, u_curr: np.ndarray, ut_0: np.ndarray, tau: float
+) -> np.ndarray:
+    """
+    Аппроксимация второго начального условия первого порядка.
+    ∂u/∂t(x,0) ≈ (u(x,τ) - u(x,0))/τ = ut_0
+    Отсюда: u(x,τ) = u(x,0) + τ * ut_0
+    """
+    return u_prev + tau * ut_0
+
+
+def approximate_second_ic_second_order(
+    u_prev: np.ndarray, u_curr: np.ndarray, ut_0: np.ndarray, tau: float, h: float, x: np.ndarray
+) -> np.ndarray:
+    """
+    Аппроксимация второго начального условия второго порядка.
+    Используем разложение Тейлора:
+    u(x,τ) = u(x,0) + τ*ut(x,0) + (τ²/2)*utt(x,0) + O(τ³)
+    
+    Из уравнения при t=0:
+    utt(x,0) = uxx(x,0) + ux(x,0) - u(x,0) + sin(x) - 3*ut(x,0)
+    
+    Вычисляем производные численно:
+    uxx(x,0) ≈ (u(x+h,0) - 2*u(x,0) + u(x-h,0))/h²
+    ux(x,0) ≈ (u(x+h,0) - u(x-h,0))/(2*h)
+    """
+    n = len(u_prev)
+    u_next = np.zeros(n)
+    
+    # Вычисляем utt из уравнения
+    for i in range(1, n - 1):
+        uxx = (u_prev[i + 1] - 2 * u_prev[i] + u_prev[i - 1]) / (h * h)
+        ux = (u_prev[i + 1] - u_prev[i - 1]) / (2 * h)
+        utt = uxx + ux - u_prev[i] + source_term(x[i], 0.0) - 3 * ut_0[i]
+        u_next[i] = u_prev[i] + tau * ut_0[i] + (tau * tau / 2) * utt
+    
+    # Граничные условия
+    u_next[0] = boundary_condition_left(tau)
+    u_next[-1] = boundary_condition_right(tau)
+    
+    return u_next
+
+
+# ============================================================================
+# Аппроксимации краевых условий (для производных в граничных условиях)
 # ============================================================================
 
 def apply_boundary_condition_two_point_first_order(
     u: np.ndarray, h: float, f_left: float, f_right: float
 ) -> None:
     """
-    Граничные условия Дирихле: u(0,t) = f_left, u(π,t) = f_right
-    Для условий Дирихле просто устанавливаем значения на границах.
+    Двухточечная аппроксимация первого порядка точности.
+    Для задачи с производными в граничных условиях.
+    В данной задаче граничные условия - Дирихле, поэтому просто устанавливаем значения.
     """
-    if np.isfinite(f_left):
-        u[0] = f_left
-    else:
-        u[0] = np.nan
-    
-    if np.isfinite(f_right):
-        u[-1] = f_right
-    else:
-        u[-1] = np.nan
+    # В данной задаче граничные условия - Дирихле (значения функции)
+    # Но функция оставлена для совместимости с общей структурой
+    pass
 
 
 def apply_boundary_condition_three_point_second_order(
     u: np.ndarray, h: float, f_left: float, f_right: float
 ) -> None:
     """
-    Граничные условия Дирихле: u(0,t) = f_left, u(π,t) = f_right
-    Для условий Дирихле просто устанавливаем значения на границах.
-    (Трехточечная аппроксимация не применима к условиям Дирихле,
-    но оставляем название для совместимости с интерфейсом)
+    Трехточечная аппроксимация второго порядка точности.
+    В данной задаче граничные условия - Дирихле.
     """
-    if np.isfinite(f_left):
-        u[0] = f_left
-    else:
-        u[0] = np.nan
-    
-    if np.isfinite(f_right):
-        u[-1] = f_right
-    else:
-        u[-1] = np.nan
+    pass
 
 
 def apply_boundary_condition_two_point_second_order(
     u: np.ndarray, h: float, f_left: float, f_right: float
 ) -> None:
     """
-    Двухточечная аппроксимация второго порядка точности через ghost point.
-    
-    Метод: используем симметричную формулу для u_x(0) второго порядка:
-    u_x(0) ≈ (u_1 - u_{-1})/(2*h) = f
-    
-    Из этого: u_{-1} = u_1 - 2*h*f
-    
-    Используем стандартную формулу для u_xx(0):
-    u_xx(0) ≈ (u_1 - 2*u_0 + u_{-1})/h²
-    
-    Подставляя u_{-1}:
-    u_xx(0) ≈ (u_1 - 2*u_0 + u_1 - 2*h*f)/h²
-    u_xx(0) ≈ 2*(u_1 - u_0 - h*f)/h²
-    
-    Используем формулу второго порядка с поправкой:
-    u_x(0) ≈ (u_1 - u_0)/h - (h/2)*u_xx(0)
-    
-    Подставляя u_xx(0) и решая, получаем:
-    u_0 = u_1 - h*f - h²*(u_1 - u_0 - h*f)/(2*h)
-    Упрощая: u_0 = u_1 - h*f - h*(u_1 - u_0 - h*f)/2
-    u_0 = u_1 - h*f - h*u_1/2 + h*u_0/2 + h²*f/2
-    u_0 - h*u_0/2 = u_1 - h*f - h*u_1/2 + h²*f/2
-    u_0*(1 - h/2) = u_1*(1 - h/2) - h*f*(1 - h/2)
-    u_0 = u_1 - h*f
-    
-    Это упрощается до первого порядка. Правильный метод:
-    Используем ghost point напрямую: u_0 = u_1 - 2*h*f (из симметричной формулы)
-    Но это не дает второй порядок для u_xx.
-    
-    Правильный метод: используем формулу второго порядка с поправкой через ghost point.
-    u_x(0) ≈ (u_1 - u_{-1})/(2*h) = f, откуда u_{-1} = u_1 - 2*h*f
-    u_xx(0) ≈ (u_1 - 2*u_0 + u_{-1})/h² = (u_1 - 2*u_0 + u_1 - 2*h*f)/h²
-    u_xx(0) ≈ 2*(u_1 - u_0 - h*f)/h²
-    
-    Используем формулу: u_x(0) ≈ (u_1 - u_0)/h - (h/2)*u_xx(0) = f
-    (u_1 - u_0)/h - (h/2)*2*(u_1 - u_0 - h*f)/h² = f
-    (u_1 - u_0)/h - (u_1 - u_0 - h*f)/h = f
-    (u_1 - u_0 - u_1 + u_0 + h*f)/h = f
-    h*f/h = f
-    f = f
-    
-    Это тождество. Правильный метод: используем ghost point для вычисления u_xx,
-    затем используем формулу второго порядка.
+    Двухточечная аппроксимация второго порядка точности.
+    В данной задаче граничные условия - Дирихле.
     """
-    # Проверка на валидность данных
-    if not np.isfinite(u[1]) or not np.isfinite(f_left):
-        u[0] = np.nan
-    else:
-        # Двухточечная аппроксимация 2-го порядка через ghost point.
-        # Используем симметричную формулу: u_x(0) ≈ (u_1 - u_{-1})/(2*h) = f
-        # Отсюда: u_{-1} = u_1 - 2*h*f
-        
-        # Используем стандартную формулу для u_xx(0):
-        # u_xx(0) ≈ (u_1 - 2*u_0 + u_{-1})/h² = (u_1 - 2*u_0 + u_1 - 2*h*f)/h²
-        # u_xx(0) ≈ 2*(u_1 - u_0 - h*f)/h²
-        
-        # Используем формулу второго порядка с поправкой:
-        # u_x(0) ≈ (u_1 - u_0)/h - (h/2)*u_xx(0) = f
-        
-        # Подставляя u_xx(0) и решая относительно u_0:
-        # (u_1 - u_0)/h - (h/2)*2*(u_1 - u_0 - h*f)/h² = f
-        # (u_1 - u_0)/h - (u_1 - u_0 - h*f)/h = f
-        # Это упрощается до f = f (тождество)
-        
-        # Правильный метод: используем формулу из разложения Тейлора:
-        # u_1 = u_0 + h*u_x(0) + (h²/2)*u_xx(0) + O(h³)
-        # где u_x(0) = f, а u_xx(0) вычисляется через ghost point
-        
-        # Используем ghost point: u_{-1} = u_1 - 2*h*f
-        # u_xx(0) ≈ (u_1 - 2*u_0 + u_{-1})/h² = 2*(u_1 - u_0 - h*f)/h²
-        
-        # Подставляя в разложение Тейлора:
-        # u_1 = u_0 + h*f + (h²/2)*2*(u_1 - u_0 - h*f)/h²
-        # u_1 = u_0 + h*f + (u_1 - u_0 - h*f)
-        # u_1 = u_1 (тождество!)
-        
-        # Правильный метод: используем формулу второго порядка напрямую
-        # u_0 = (u_1 - h*f) / (1 + h - h²/2)
-        # Это формула второго порядка, полученная из разложения Тейлора
-        # с учетом u_xx через ghost point и граничного условия
-        
-        denominator = 1.0 + h - (h * h) / 2.0
-        if abs(denominator) < 1e-15:
-            u[0] = np.nan
-        else:
-            numerator = u[1] - h * f_left
-            u0 = numerator / denominator
-            
-            # Проверка на валидность
-            if not np.isfinite(u0) or abs(u0) > 1e10:
-                u[0] = np.nan
-            else:
-                u[0] = u0
-    
-    # Аналогично для правой границы
-    if not np.isfinite(u[-2]) or not np.isfinite(f_right):
-        u[-1] = np.nan
-    else:
-        # Для правой границы: u_x(π) ≈ (u_{n+1} - u_{n-1})/(2*h) = f
-        # где u_{n+1} = u_{n-1} + 2*h*f (ghost point)
-        # u_n = (u_{n-1} + h*f) / (1 + h - h²/2)
-        denominator = 1.0 + h - (h * h) / 2.0
-        if abs(denominator) < 1e-15:
-            u[-1] = np.nan
-        else:
-            numerator = u[-2] + h * f_right
-            un = numerator / denominator
-            
-            # Проверка на валидность
-            if not np.isfinite(un) or abs(un) > 1e10:
-                u[-1] = np.nan
-            else:
-                u[-1] = un
-
-
-# ============================================================================
-# Аппроксимация второго начального условия
-# ============================================================================
-
-def approximate_second_initial_condition_first_order(
-    u_prev: np.ndarray, u_curr: np.ndarray, tau: float, ut_initial: np.ndarray,
-    h: float, x: np.ndarray, t: float, boundary_func: Callable, f_left: float, f_right: float
-) -> np.ndarray:
-    """
-    Аппроксимация второго начального условия первого порядка.
-    u_t(x,0) ≈ (u(x,τ) - u(x,0))/τ = ut_initial
-    Отсюда: u(x,τ) = u(x,0) + τ*ut_initial
-    """
-    return u_prev + tau * ut_initial
-
-
-def approximate_second_initial_condition_second_order(
-    u_prev: np.ndarray, u_curr: np.ndarray, tau: float, ut_initial: np.ndarray,
-    h: float, x: np.ndarray, t: float, boundary_func: Callable, f_left: float, f_right: float
-) -> np.ndarray:
-    """
-    Аппроксимация второго начального условия второго порядка.
-    Используем формулу: u_t(x,0) ≈ (u(x,τ) - u(x,-τ))/(2*τ) = ut_initial
-    Отсюда: u(x,τ) = u(x,-τ) + 2*τ*ut_initial
-    
-    Но u(x,-τ) неизвестно, поэтому используем разложение Тейлора:
-    u(x,τ) = u(x,0) + τ*u_t(x,0) + (τ²/2)*u_tt(x,0) + O(τ³)
-    
-    Из уравнения: u_tt(x,0) = u_xx(x,0) + u_x(x,0) - u(x,0) - 3*u_t(x,0) - cos(x)
-    (так как при t=0: u_tt + 3*u_t = u_xx + u_x - u - cos(x))
-    
-    Используем приближение:
-    u(x,τ) ≈ u(x,0) + τ*ut_initial + (τ²/2)*[u_xx(x,0) + u_x(x,0) - u(x,0) - 3*ut_initial - cos(x)]
-    """
-    # Вычисляем производные в начальный момент
-    n = len(u_prev)
-    u_xx = np.zeros(n)
-    u_x = np.zeros(n)
-    
-    # Внутренние точки
-    for i in range(1, n - 1):
-        u_xx[i] = (u_prev[i + 1] - 2 * u_prev[i] + u_prev[i - 1]) / (h * h)
-        u_x[i] = (u_prev[i + 1] - u_prev[i - 1]) / (2 * h)
-    
-    # Для граничных условий Дирихле вычисляем производные на границах
-    # Левая граница: u(0) = f_left (из граничного условия)
-    # u_x[0] ≈ (u_prev[1] - u_prev[0])/h (односторонняя разность вперед)
-    # u_xx[0] ≈ (u_prev[2] - 2*u_prev[1] + u_prev[0])/h² (экстраполяция)
-    if n > 2:
-        u_x[0] = (u_prev[1] - u_prev[0]) / h
-        u_xx[0] = (u_prev[2] - 2 * u_prev[1] + u_prev[0]) / (h * h)
-    else:
-        u_x[0] = 0.0
-        u_xx[0] = 0.0
-    
-    # Правая граница: u(π) = f_right (из граничного условия)
-    # u_x[-1] ≈ (u_prev[-1] - u_prev[-2])/h (односторонняя разность назад)
-    # u_xx[-1] ≈ (u_prev[-1] - 2*u_prev[-2] + u_prev[-3])/h² (экстраполяция)
-    if n > 2:
-        u_x[-1] = (u_prev[-1] - u_prev[-2]) / h
-        u_xx[-1] = (u_prev[-1] - 2 * u_prev[-2] + u_prev[-3]) / (h * h)
-    else:
-        u_x[-1] = 0.0
-        u_xx[-1] = 0.0
-    
-    # Вычисляем u_tt из уравнения
-    source = source_term(x, 0.0)
-    u_tt = u_xx + u_x - u_prev - ALPHA * ut_initial - source
-    
-    # Используем формулу второго порядка
-    u_next = u_prev + tau * ut_initial + (tau * tau / 2.0) * u_tt
-    
-    return u_next
+    pass
 
 
 # ============================================================================
@@ -309,69 +151,108 @@ def explicit_cross_scheme(
     u_curr: np.ndarray,
     h: float,
     tau: float,
-    boundary_func: Callable,
-    f_left: float,
-    f_right: float,
-    x: np.ndarray,
     t: float,
+    x: np.ndarray,
 ) -> np.ndarray:
     """
     Явная схема крест для гиперболического уравнения.
-    ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u + sin(x) exp(-t)
+    Уравнение: ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u + sin(x) exp(-t)
     
-    Разностная схема:
-    (u_i^{n+1} - 2*u_i^n + u_i^{n-1})/τ² + 3*(u_i^{n+1} - u_i^{n-1})/(2*τ) =
-        (u_{i+1}^n - 2*u_i^n + u_{i-1}^n)/h² + (u_{i+1}^n - u_{i-1}^n)/(2*h) - u_i^n - source_i^n
+    Аппроксимируем:
+    utt ≈ (u^{n+1} - 2*u^n + u^{n-1})/τ²
+    ut ≈ (u^{n+1} - u^{n-1})/(2*τ)
+    uxx ≈ (u_{i+1}^n - 2*u_i^n + u_{i-1}^n)/h²
+    ux ≈ (u_{i+1}^n - u_{i-1}^n)/(2*h)
     
-    Решая относительно u_i^{n+1}:
-    u_i^{n+1} = [2*u_i^n - u_i^{n-1} + τ²*(u_xx + u_x - u - source) - 3*τ*(u_i^{n+1} - u_i^{n-1})/2] / (1 + 3*τ/2)
+    Получаем:
+    (u^{n+1} - 2*u^n + u^{n-1})/τ² + 3*(u^{n+1} - u^{n-1})/(2*τ) 
+    = (u_{i+1}^n - 2*u_i^n + u_{i-1}^n)/h² + (u_{i+1}^n - u_{i-1}^n)/(2*h) - u_i^n + f_i^n
     
-    Упрощая:
-    u_i^{n+1}*(1 + 3*τ/2) = 2*u_i^n - u_i^{n-1} + τ²*(u_xx + u_x - u - source) + 3*τ*u_i^{n-1}/2
-    u_i^{n+1} = [2*u_i^n - u_i^{n-1}*(1 - 3*τ/2) + τ²*(u_xx + u_x - u - source)] / (1 + 3*τ/2)
+    Решаем относительно u^{n+1}:
+    u^{n+1} = [2*u^n - u^{n-1} + τ²*(uxx + ux - u + f) - 3*τ*(u^{n+1} - u^{n-1})/2] / (1 + 3*τ/2)
+    
+    Упрощаем:
+    u^{n+1}*(1 + 3*τ/2) = 2*u^n - u^{n-1} + τ²*(uxx + ux - u + f) + 3*τ*u^{n-1}/2
+    u^{n+1} = [2*u^n + u^{n-1}*(3*τ/2 - 1) + τ²*(uxx + ux - u + f)] / (1 + 3*τ/2)
     """
     n = len(u_curr)
     u_next = np.zeros(n)
     
-    # Проверка на валидность входных данных
-    if np.any(~np.isfinite(u_prev)) or np.any(~np.isfinite(u_curr)):
-        return np.full(n, np.nan)
-    
-    source = source_term(x, t)
-    coeff = 1.0 + 3.0 * tau / 2.0
+    # Коэффициенты
+    alpha = 1.0 + 3.0 * tau / 2.0
+    beta = 1.0 - 3.0 * tau / 2.0
+    tau2 = tau * tau
     
     # Внутренние точки
     for i in range(1, n - 1):
-        # Проверка на валидность данных
-        if not np.isfinite(u_curr[i + 1]) or not np.isfinite(u_curr[i]) or not np.isfinite(u_curr[i - 1]):
-            return np.full(n, np.nan)
+        uxx = (u_curr[i + 1] - 2 * u_curr[i] + u_curr[i - 1]) / (h * h)
+        ux = (u_curr[i + 1] - u_curr[i - 1]) / (2 * h)
+        f = source_term(x[i], t)
         
-        u_xx = (u_curr[i + 1] - 2 * u_curr[i] + u_curr[i - 1]) / (h * h)
-        u_x = (u_curr[i + 1] - u_curr[i - 1]) / (2 * h)
+        u_next[i] = (2.0 * u_curr[i] - beta * u_prev[i] + tau2 * (uxx + ux - u_curr[i] + f)) / alpha
+    
+    # Граничные условия (Дирихле)
+    u_next[0] = boundary_condition_left(t + tau)
+    u_next[-1] = boundary_condition_right(t + tau)
+    
+    return u_next
+
+
+def implicit_scheme(
+    u_prev: np.ndarray,
+    u_curr: np.ndarray,
+    h: float,
+    tau: float,
+    t: float,
+    x: np.ndarray,
+) -> np.ndarray:
+    """
+    Неявная схема для гиперболического уравнения.
+    Аппроксимируем пространственные производные на новом временном слое.
+    
+    (u^{n+1} - 2*u^n + u^{n-1})/τ² + 3*(u^{n+1} - u^{n-1})/(2*τ)
+    = (u_{i+1}^{n+1} - 2*u_i^{n+1} + u_{i-1}^{n+1})/h² 
+      + (u_{i+1}^{n+1} - u_{i-1}^{n+1})/(2*h) - u_i^{n+1} + f_i^{n+1}
+    
+    Переписываем:
+    u_i^{n+1}*(1/τ² + 3/(2*τ) + 2/h² + 1) 
+    - u_{i+1}^{n+1}*(1/h² + 1/(2*h))
+    - u_{i-1}^{n+1}*(1/h² - 1/(2*h))
+    = 2*u_i^n/τ² - u_i^{n-1}*(1/τ² - 3/(2*τ)) + f_i^{n+1}
+    """
+    n = len(u_curr)
+    
+    # Коэффициенты
+    a_coeff = np.zeros(n)  # при u_{i-1}
+    b_coeff = np.zeros(n)  # при u_i
+    c_coeff = np.zeros(n)  # при u_{i+1}
+    d_coeff = np.zeros(n)  # правая часть
+    
+    tau2 = tau * tau
+    h2 = h * h
+    
+    # Коэффициенты для внутренних точек
+    for i in range(1, n - 1):
+        a_coeff[i] = -(1.0 / h2 - 1.0 / (2.0 * h))
+        b_coeff[i] = 1.0 / tau2 + 3.0 / (2.0 * tau) + 2.0 / h2 + 1.0
+        c_coeff[i] = -(1.0 / h2 + 1.0 / (2.0 * h))
+        d_coeff[i] = 2.0 * u_curr[i] / tau2 - u_prev[i] * (1.0 / tau2 - 3.0 / (2.0 * tau)) + source_term(x[i], t + tau)
         
-        # Проверка на overflow
-        if not np.isfinite(u_xx) or not np.isfinite(u_x):
-            return np.full(n, np.nan)
-        
-        # Вычисляем новый слой
-        numerator = (2.0 * u_curr[i] - u_prev[i] * (1.0 - 3.0 * tau / 2.0) +
-                    tau * tau * (u_xx + u_x - u_curr[i] + source[i]))
-        
-        if not np.isfinite(numerator) or abs(numerator) > 1e10:
-            return np.full(n, np.nan)
-        
-        u_next[i] = numerator / coeff
-        
-        # Проверка на overflow после вычисления
-        if not np.isfinite(u_next[i]) or abs(u_next[i]) > 1e10:
+        # Проверка на валидность
+        if not np.isfinite(a_coeff[i]) or not np.isfinite(b_coeff[i]) or not np.isfinite(c_coeff[i]) or not np.isfinite(d_coeff[i]):
             return np.full(n, np.nan)
     
-    # Применяем граничные условия
-    boundary_func(u_next, h, f_left, f_right)
+    # Граничные условия (Дирихле)
+    b_coeff[0] = 1.0
+    c_coeff[0] = 0.0
+    d_coeff[0] = boundary_condition_left(t + tau)
     
-    # Проверка после граничных условий
-    if np.any(~np.isfinite(u_next)):
-        return np.full(n, np.nan)
+    a_coeff[-1] = 0.0
+    b_coeff[-1] = 1.0
+    d_coeff[-1] = boundary_condition_right(t + tau)
+    
+    # Решаем систему методом прогонки
+    u_next = thomas_algorithm(a_coeff, b_coeff, c_coeff, d_coeff)
     
     return u_next
 
@@ -383,10 +264,6 @@ def thomas_algorithm(a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray)
     """
     n = len(d)
     
-    # Проверка на валидность входных данных
-    if np.any(~np.isfinite(a)) or np.any(~np.isfinite(b)) or np.any(~np.isfinite(c)) or np.any(~np.isfinite(d)):
-        return np.full(n, np.nan)
-    
     # Копируем массивы для модификации
     b_copy = b.copy()
     d_copy = d.copy()
@@ -397,144 +274,17 @@ def thomas_algorithm(a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray)
             return np.full(n, np.nan)
         
         m = a[i] / b_copy[i - 1]
-        
-        # Проверка на overflow
-        if not np.isfinite(m) or abs(m) > 1e10:
-            return np.full(n, np.nan)
-        
         b_copy[i] = b_copy[i] - m * c[i - 1]
         d_copy[i] = d_copy[i] - m * d_copy[i - 1]
-        
-        # Проверка на overflow после вычислений
-        if not np.isfinite(b_copy[i]) or not np.isfinite(d_copy[i]):
-            return np.full(n, np.nan)
     
     # Обратный ход
     x = np.zeros(n)
-    
-    if abs(b_copy[n - 1]) < 1e-15:
-        return np.full(n, np.nan)
-    
     x[n - 1] = d_copy[n - 1] / b_copy[n - 1]
     
-    if not np.isfinite(x[n - 1]):
-        return np.full(n, np.nan)
-    
     for i in range(n - 2, -1, -1):
-        if abs(b_copy[i]) < 1e-15:
-            return np.full(n, np.nan)
-        
         x[i] = (d_copy[i] - c[i] * x[i + 1]) / b_copy[i]
-        
-        # Проверка на overflow
-        if not np.isfinite(x[i]):
-            return np.full(n, np.nan)
     
     return x
-
-
-def implicit_scheme(
-    u_prev: np.ndarray,
-    u_curr: np.ndarray,
-    h: float,
-    tau: float,
-    boundary_func: Callable,
-    f_left: float,
-    f_right: float,
-    x: np.ndarray,
-    t: float,
-) -> np.ndarray:
-    """
-    Неявная схема для гиперболического уравнения.
-    ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u - cos(x) exp(-t)
-    
-    Используем неявную аппроксимацию для пространственных производных:
-    (u_i^{n+1} - 2*u_i^n + u_i^{n-1})/τ² + 3*(u_i^{n+1} - u_i^{n-1})/(2*τ) =
-        (u_{i+1}^{n+1} - 2*u_i^{n+1} + u_{i-1}^{n+1})/h² + (u_{i+1}^{n+1} - u_{i-1}^{n+1})/(2*h) - u_i^{n+1} - source_i^{n+1}
-    
-    Решаем систему линейных уравнений методом прогонки.
-    """
-    n = len(u_curr)
-    
-    # Проверка на валидность входных данных
-    if np.any(~np.isfinite(u_prev)) or np.any(~np.isfinite(u_curr)):
-        return np.full(n, np.nan)
-    
-    source = source_term(x, t + tau)
-    
-    # Коэффициенты разностной схемы
-    alpha = tau * tau / (h * h)  # коэффициент при u_xx
-    beta = tau * tau / (2 * h)   # коэффициент при u_x
-    gamma = 1.0 + 3.0 * tau / 2.0 + tau * tau  # коэффициент при u_i^{n+1}
-    
-    # Строим трехдиагональную систему
-    a = np.zeros(n)  # коэффициенты при u_{i-1}
-    b = np.zeros(n)  # коэффициенты при u_i
-    c = np.zeros(n)  # коэффициенты при u_{i+1}
-    d = np.zeros(n)  # правая часть
-    
-    # Внутренние точки
-    for i in range(1, n - 1):
-        a[i] = -alpha + beta
-        b[i] = gamma + 2 * alpha
-        c[i] = -alpha - beta
-        d[i] = 2.0 * u_curr[i] - u_prev[i] * (1.0 - 3.0 * tau / 2.0) + tau * tau * source[i]
-    
-    # Используем итерации для учета граничных условий
-    u_new = u_curr.copy()
-    max_iter = 20
-    tolerance = 1e-8
-    
-    for iteration in range(max_iter):
-        u_old = u_new.copy()
-        
-        # Проверка на overflow перед применением граничных условий
-        if np.any(~np.isfinite(u_new)) or np.any(np.abs(u_new) > 1e10):
-            return np.full(n, np.nan)
-        
-        # Применяем граничные условия к текущему приближению
-        boundary_func(u_new, h, f_left, f_right)
-        
-        # Проверка после применения граничных условий
-        if np.any(~np.isfinite(u_new)):
-            return np.full(n, np.nan)
-        
-        # Модифицируем систему: граничные точки фиксированы из граничных условий
-        b[0] = 1.0
-        c[0] = 0.0
-        d[0] = u_new[0]
-        
-        a[n - 1] = 0.0
-        b[n - 1] = 1.0
-        d[n - 1] = u_new[n - 1]
-        
-        # Решаем систему методом прогонки
-        u_new = thomas_algorithm(a.copy(), b.copy(), c.copy(), d.copy())
-        
-        # Проверка на валидность решения
-        if np.any(~np.isfinite(u_new)):
-            return np.full(n, np.nan)
-        
-        # Проверка сходимости
-        diff = u_new - u_old
-        if np.any(~np.isfinite(diff)):
-            return np.full(n, np.nan)
-        
-        max_diff = np.max(np.abs(diff))
-        if not np.isfinite(max_diff):
-            return np.full(n, np.nan)
-        
-        if max_diff < tolerance:
-            break
-    
-    # Финальное применение граничных условий
-    boundary_func(u_new, h, f_left, f_right)
-    
-    # Финальная проверка
-    if np.any(~np.isfinite(u_new)):
-        return np.full(n, np.nan)
-    
-    return u_new
 
 
 # ============================================================================
@@ -543,14 +293,14 @@ def implicit_scheme(
 
 def solve_pde(
     scheme_func: Callable,
-    boundary_func: Callable,
-    initial_approx_func: Callable,
+    ic_approx_func: Callable,
     n_x: int,
     n_t: int,
     scheme_name: str,
+    ic_name: str,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Решает задачу для заданной схемы и аппроксимации граничных условий.
+    Решает задачу для заданной схемы и аппроксимации начального условия.
     
     Returns:
         x: пространственная сетка
@@ -566,15 +316,19 @@ def solve_pde(
     
     # Первое начальное условие
     u_prev = initial_condition_u(x)
+    ut_0 = initial_condition_ut(x)
     
-    # Второе начальное условие
-    ut_initial = initial_condition_ut(x)
+    # Аппроксимация второго начального условия для получения u_curr
+    if ic_approx_func == approximate_second_ic_first_order:
+        u_curr = ic_approx_func(u_prev, u_prev, ut_0, tau)
+    else:
+        u_curr = ic_approx_func(u_prev, u_prev, ut_0, tau, h, x)
     
-    # Аппроксимируем второй временной слой
-    u_curr = initial_approx_func(
-        u_prev, u_prev, tau, ut_initial, h, x, 0.0, boundary_func,
-        boundary_condition_left(0.0), boundary_condition_right(0.0)
-    )
+    # Применяем граничные условия
+    u_prev[0] = boundary_condition_left(0.0)
+    u_prev[-1] = boundary_condition_right(0.0)
+    u_curr[0] = boundary_condition_left(tau)
+    u_curr[-1] = boundary_condition_right(tau)
     
     u_numerical = np.zeros((n_t + 1, n_x + 1))
     u_numerical[0, :] = u_prev
@@ -582,14 +336,11 @@ def solve_pde(
     
     # Решение по времени
     for n in range(1, n_t):
-        # Используем время на следующем шаге для граничных условий (неявные схемы)
-        f_left = boundary_condition_left(t[n + 1])
-        f_right = boundary_condition_right(t[n + 1])
-        
-        u_next = scheme_func(u_prev, u_curr, h, tau, boundary_func, f_left, f_right, x, t[n])
+        t_curr = t[n]
+        u_next = scheme_func(u_prev, u_curr, h, tau, t_curr, x)
         u_numerical[n + 1, :] = u_next
         
-        # Обновляем слои
+        # Обновляем для следующего шага
         u_prev = u_curr.copy()
         u_curr = u_next.copy()
         
@@ -639,11 +390,11 @@ def compute_l2_error(u_numerical: np.ndarray, u_analytical: np.ndarray, h: float
 
 def study_grid_dependence(
     scheme_func: Callable,
-    boundary_func: Callable,
-    initial_approx_func: Callable,
+    ic_approx_func: Callable,
     n_x_values: list,
     n_t_values: list,
     scheme_name: str,
+    ic_name: str,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Исследует зависимость погрешности от параметров сетки h и τ.
@@ -664,7 +415,7 @@ def study_grid_dependence(
             h = (X_MAX - X_MIN) / n_x
             tau = T_MAX / n_t
             
-            _, _, u_num, u_anal = solve_pde(scheme_func, boundary_func, initial_approx_func, n_x, n_t, scheme_name)
+            _, _, u_num, u_anal = solve_pde(scheme_func, ic_approx_func, n_x, n_t, scheme_name, ic_name)
             
             max_err = compute_max_error(u_num, u_anal)
             l2_err = compute_l2_error(u_num, u_anal, h)
@@ -687,30 +438,72 @@ def plot_solution(
     u_numerical: np.ndarray,
     u_analytical: np.ndarray,
     scheme_name: str,
+    ic_name: str,
     boundary_name: str,
-    initial_name: str,
     output_dir: str,
 ):
     """Визуализация решения"""
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    fig = plt.figure(figsize=(14, 10))
     
     # Выбираем несколько моментов времени для визуализации
     time_indices = [0, len(t) // 4, len(t) // 2, -1]
     
-    for idx, ax in enumerate(axes.flat):
-        n = time_indices[idx]
-        ax.plot(x, u_numerical[n, :], 'b-', label='Численное', linewidth=2)
-        ax.plot(x, u_analytical[n, :], 'r--', label='Аналитическое', linewidth=2)
-        ax.set_xlabel('x')
-        ax.set_ylabel('u(x,t)')
-        ax.set_title(f't = {t[n]:.3f}')
-        ax.legend()
-        ax.grid(True)
+    # Создаем сетку: 3 строки, 2 столбца
+    # Верхние 2x2 - решения, нижняя строка - разности
+    gs = fig.add_gridspec(3, 2, hspace=0.3, wspace=0.3)
     
-    plt.suptitle(f'{scheme_name} - {boundary_name} - {initial_name}', fontsize=14)
-    plt.tight_layout()
-    filename = os.path.join(output_dir, f'solution_{scheme_name}_{boundary_name}_{initial_name}.png')
-    plt.savefig(filename, dpi=150)
+    # Графики решений
+    for idx in range(4):
+        row = idx // 2
+        col = idx % 2
+        ax = fig.add_subplot(gs[row, col])
+        
+        n = time_indices[idx]
+        # Вычисляем разницу для проверки
+        diff = np.abs(u_numerical[n, :] - u_analytical[n, :])
+        max_diff = np.max(diff)
+        
+        # Показываем численное и аналитическое решения
+        line1 = ax.plot(x, u_numerical[n, :], 'b-', label='Численное', linewidth=2.5, alpha=0.8)
+        line2 = ax.plot(x, u_analytical[n, :], 'r--', label='Аналитическое', linewidth=2, alpha=0.8, dashes=(5, 5))
+        
+        # Показываем разницу в виде заливки
+        diff_vals = u_numerical[n, :] - u_analytical[n, :]
+        ax.fill_between(x, u_analytical[n, :], u_numerical[n, :], 
+                       where=(diff_vals > 0), alpha=0.3, color='blue', label='Разница')
+        ax.fill_between(x, u_analytical[n, :], u_numerical[n, :], 
+                       where=(diff_vals <= 0), alpha=0.3, color='red')
+        
+        # Добавляем информацию о максимальной погрешности и значении функции
+        u_max = np.max(np.abs(u_analytical[n, :]))
+        rel_error = max_diff / u_max if u_max > 1e-10 else max_diff
+        ax.text(0.02, 0.98, f'Max error: {max_diff:.2e}\nRel error: {rel_error:.2e}', 
+                transform=ax.transAxes, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.7), fontsize=9)
+        
+        ax.set_xlabel('x', fontsize=10)
+        ax.set_ylabel('u(x,t)', fontsize=10)
+        ax.set_title(f't = {t[n]:.3f}', fontsize=11)
+        ax.legend(fontsize=9)
+        ax.grid(True, alpha=0.3)
+    
+    # Графики разности (нижняя строка)
+    for idx in range(2):
+        ax = fig.add_subplot(gs[2, idx])
+        n = time_indices[idx * 2]  # Берем первый и третий момент времени
+        diff = u_numerical[n, :] - u_analytical[n, :]
+        
+        ax.plot(x, diff, 'g-', linewidth=2)
+        ax.axhline(y=0, color='k', linestyle='--', linewidth=1, alpha=0.5)
+        ax.set_xlabel('x', fontsize=10)
+        ax.set_ylabel('Разность (числ - анал)', fontsize=10)
+        ax.set_title(f'Разность при t = {t[n]:.3f}', fontsize=11)
+        ax.grid(True, alpha=0.3)
+        ax.set_yscale('symlog', linthresh=1e-6)  # Симметричный log для показа малых значений
+    
+    plt.suptitle(f'{scheme_name} - {ic_name} - {boundary_name}', fontsize=14, y=0.995)
+    filename = os.path.join(output_dir, f'solution_{scheme_name}_{ic_name}_{boundary_name}.png')
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
     plt.close()
 
 
@@ -720,8 +513,8 @@ def plot_error(
     u_numerical: np.ndarray,
     u_analytical: np.ndarray,
     scheme_name: str,
+    ic_name: str,
     boundary_name: str,
-    initial_name: str,
     output_dir: str,
 ):
     """Визуализация погрешности"""
@@ -733,15 +526,22 @@ def plot_error(
     
     for idx, ax in enumerate(axes.flat):
         n = time_indices[idx]
-        ax.plot(x, error[n, :], 'g-', linewidth=2)
+        error_vals = error[n, :]
+        # Фильтруем нулевые и отрицательные значения для log scale
+        positive_mask = error_vals > 1e-15
+        if np.any(positive_mask):
+            ax.plot(x[positive_mask], error_vals[positive_mask], 'g-', linewidth=2)
+            ax.set_yscale('log')
+        else:
+            ax.plot(x, error_vals, 'g-', linewidth=2)
         ax.set_xlabel('x')
         ax.set_ylabel('Погрешность')
         ax.set_title(f't = {t[n]:.3f}')
         ax.grid(True)
     
-    plt.suptitle(f'Погрешность: {scheme_name} - {boundary_name} - {initial_name}', fontsize=14)
+    plt.suptitle(f'Погрешность: {scheme_name} - {ic_name} - {boundary_name}', fontsize=14)
     plt.tight_layout()
-    filename = os.path.join(output_dir, f'error_{scheme_name}_{boundary_name}_{initial_name}.png')
+    filename = os.path.join(output_dir, f'error_{scheme_name}_{ic_name}_{boundary_name}.png')
     plt.savefig(filename, dpi=150)
     plt.close()
 
@@ -752,8 +552,8 @@ def plot_grid_dependence(
     max_errors: np.ndarray,
     l2_errors: np.ndarray,
     scheme_name: str,
+    ic_name: str,
     boundary_name: str,
-    initial_name: str,
     output_dir: str,
 ):
     """Визуализация зависимости погрешности от параметров сетки"""
@@ -801,9 +601,9 @@ def plot_grid_dependence(
     axes[1].legend()
     axes[1].grid(True)
     
-    plt.suptitle(f'Зависимость погрешности: {scheme_name} - {boundary_name} - {initial_name}', fontsize=14)
+    plt.suptitle(f'Зависимость погрешности: {scheme_name} - {ic_name} - {boundary_name}', fontsize=14)
     plt.tight_layout()
-    filename = os.path.join(output_dir, f'grid_dependence_{scheme_name}_{boundary_name}_{initial_name}.png')
+    filename = os.path.join(output_dir, f'grid_dependence_{scheme_name}_{ic_name}_{boundary_name}.png')
     plt.savefig(filename, dpi=150)
     plt.close()
 
@@ -829,39 +629,39 @@ def main():
         (implicit_scheme, "Неявная"),
     ]
     
-    # Аппроксимации граничных условий
+    # Аппроксимации второго начального условия
+    ic_approximations = [
+        (approximate_second_ic_first_order, "1-го_порядка"),
+        (approximate_second_ic_second_order, "2-го_порядка"),
+    ]
+    
+    # Аппроксимации граничных условий (для совместимости, хотя в задаче Дирихле)
     boundary_approximations = [
         (apply_boundary_condition_two_point_first_order, "Двухточечная_1-го_порядка"),
         (apply_boundary_condition_three_point_second_order, "Трехточечная_2-го_порядка"),
         (apply_boundary_condition_two_point_second_order, "Двухточечная_2-го_порядка"),
     ]
     
-    # Аппроксимации второго начального условия
-    initial_approximations = [
-        (approximate_second_initial_condition_first_order, "1-го_порядка"),
-        (approximate_second_initial_condition_second_order, "2-го_порядка"),
-    ]
-    
     print("=" * 80)
-    print("Лабораторная работа 6: Численные методы решения гиперболических уравнений")
+    print("Лабораторная работа 2: Численные методы решения гиперболических уравнений")
     print("Вариант 9")
     print("=" * 80)
-    print(f"Параметры: α = {ALPHA}, β = {BETA}, γ = {GAMMA}")
+    print(f"Уравнение: ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u + sin(x) exp(-t)")
     print(f"Сетка: n_x = {n_x}, n_t = {n_t}")
     print(f"Шаги: h = {(X_MAX - X_MIN) / n_x:.6f}, τ = {T_MAX / n_t:.6f}")
     print("=" * 80)
     
-    # Решение для всех комбинаций схем, граничных условий и аппроксимаций начального условия
+    # Решение для всех комбинаций схем, аппроксимаций НУ и ГУ
     results = []
     
     for scheme_func, scheme_name in schemes:
-        for boundary_func, boundary_name in boundary_approximations:
-            for initial_func, initial_name in initial_approximations:
-                print(f"\n{scheme_name} схема + {boundary_name} + {initial_name}")
+        for ic_func, ic_name in ic_approximations:
+            for boundary_func, boundary_name in boundary_approximations:
+                print(f"\n{scheme_name} схема + НУ {ic_name} + ГУ {boundary_name}")
                 print("-" * 80)
                 
                 # Решение задачи
-                x, t, u_num, u_anal = solve_pde(scheme_func, boundary_func, initial_func, n_x, n_t, scheme_name)
+                x, t, u_num, u_anal = solve_pde(scheme_func, ic_func, n_x, n_t, scheme_name, ic_name)
                 
                 # Вычисление погрешностей
                 max_err = compute_max_error(u_num, u_anal)
@@ -871,13 +671,13 @@ def main():
                 print(f"L2 норма погрешности: {l2_err:.6e}")
                 
                 # Визуализация
-                plot_solution(x, t, u_num, u_anal, scheme_name, boundary_name, initial_name, output_dir)
-                plot_error(x, t, u_num, u_anal, scheme_name, boundary_name, initial_name, output_dir)
+                plot_solution(x, t, u_num, u_anal, scheme_name, ic_name, boundary_name, output_dir)
+                plot_error(x, t, u_num, u_anal, scheme_name, ic_name, boundary_name, output_dir)
                 
                 results.append({
                     'scheme': scheme_name,
+                    'ic': ic_name,
                     'boundary': boundary_name,
-                    'initial': initial_name,
                     'max_error': max_err,
                     'l2_error': l2_err,
                 })
@@ -890,36 +690,82 @@ def main():
     n_x_values = [20, 30, 40, 50, 60, 80, 100]
     n_t_values = [50, 75, 100, 150, 200]
     
-    # Исследуем для лучшей комбинации
-    scheme_func = explicit_cross_scheme
-    boundary_func = apply_boundary_condition_three_point_second_order
-    initial_func = approximate_second_initial_condition_second_order
-    scheme_name = "Явная_крест"
-    boundary_name = "Трехточечная_2-го_порядка"
-    initial_name = "2-го_порядка"
+    # Исследуем для нескольких комбинаций
+    test_configs = [
+        (explicit_cross_scheme, approximate_second_ic_second_order, "Явная_крест", "2-го_порядка", "Трехточечная_2-го_порядка"),
+        (implicit_scheme, approximate_second_ic_second_order, "Неявная", "2-го_порядка", "Трехточечная_2-го_порядка"),
+    ]
     
-    print(f"\nИсследование для: {scheme_name} + {boundary_name.replace('_', ' ')} + {initial_name.replace('_', ' ')}")
-    h_vals, tau_vals, max_errs, l2_errs = study_grid_dependence(
-        scheme_func, boundary_func, initial_func, n_x_values, n_t_values, scheme_name
-    )
-    
-    plot_grid_dependence(h_vals, tau_vals, max_errs, l2_errs, scheme_name, boundary_name, initial_name, output_dir)
-    
-    # Вывод результатов исследования
-    print("\nРезультаты исследования зависимости от параметров сетки:")
-    print(f"{'h':>12} {'τ':>12} {'Max Error':>15} {'L2 Error':>15}")
-    print("-" * 60)
-    for i in range(min(20, len(h_vals))):  # Показываем первые 20
-        print(f"{h_vals[i]:>12.6f} {tau_vals[i]:>12.6f} {max_errs[i]:>15.6e} {l2_errs[i]:>15.6e}")
+    for scheme_func, ic_func, scheme_name, ic_name, boundary_name in test_configs:
+        print(f"\nИсследование для: {scheme_name} + НУ {ic_name} + ГУ {boundary_name}")
+        h_vals, tau_vals, max_errs, l2_errs = study_grid_dependence(
+            scheme_func, ic_func, n_x_values, n_t_values, scheme_name, ic_name
+        )
+        
+        plot_grid_dependence(h_vals, tau_vals, max_errs, l2_errs, scheme_name, ic_name, boundary_name, output_dir)
+        
+        # Вывод результатов исследования
+        print("\nРезультаты исследования зависимости от параметров сетки:")
+        print(f"{'h':>12} {'τ':>12} {'Max Error':>15} {'L2 Error':>15}")
+        print("-" * 60)
+        for i in range(min(20, len(h_vals))):  # Показываем первые 20
+            if np.isfinite(max_errs[i]) and max_errs[i] > 0:
+                print(f"{h_vals[i]:>12.6f} {tau_vals[i]:>12.6f} {max_errs[i]:>15.6e} {l2_errs[i]:>15.6e}")
+        
+        # Вычисление порядка сходимости по h
+        print("\nПорядок сходимости по h (при фиксированном τ):")
+        unique_tau = np.unique(tau_vals)
+        for tau in unique_tau[:2]:  # Берем первые 2 значения
+            mask = np.abs(tau_vals - tau) < 1e-10
+            if np.sum(mask) >= 2:
+                h_sorted = h_vals[mask]
+                err_sorted = max_errs[mask]
+                sorted_idx = np.argsort(h_sorted)
+                h_sorted = h_sorted[sorted_idx]
+                err_sorted = err_sorted[sorted_idx]
+                
+                # Вычисляем порядок сходимости
+                if len(h_sorted) >= 2:
+                    orders = []
+                    for i in range(len(h_sorted) - 1):
+                        if err_sorted[i] > 0 and err_sorted[i+1] > 0:
+                            order = np.log(err_sorted[i] / err_sorted[i+1]) / np.log(h_sorted[i] / h_sorted[i+1])
+                            orders.append(order)
+                    if orders:
+                        avg_order = np.mean(orders)
+                        print(f"  τ = {tau:.4f}: средний порядок = {avg_order:.3f}")
+        
+        # Вычисление порядка сходимости по τ
+        print("\nПорядок сходимости по τ (при фиксированном h):")
+        unique_h = np.unique(h_vals)
+        for h in unique_h[:2]:  # Берем первые 2 значения
+            mask = np.abs(h_vals - h) < 1e-10
+            if np.sum(mask) >= 2:
+                tau_sorted = tau_vals[mask]
+                err_sorted = max_errs[mask]
+                sorted_idx = np.argsort(tau_sorted)
+                tau_sorted = tau_sorted[sorted_idx]
+                err_sorted = err_sorted[sorted_idx]
+                
+                # Вычисляем порядок сходимости
+                if len(tau_sorted) >= 2:
+                    orders = []
+                    for i in range(len(tau_sorted) - 1):
+                        if err_sorted[i] > 0 and err_sorted[i+1] > 0:
+                            order = np.log(err_sorted[i] / err_sorted[i+1]) / np.log(tau_sorted[i] / tau_sorted[i+1])
+                            orders.append(order)
+                    if orders:
+                        avg_order = np.mean(orders)
+                        print(f"  h = {h:.4f}: средний порядок = {avg_order:.3f}")
     
     # Сводная таблица результатов
     print("\n" + "=" * 80)
     print("Сводная таблица результатов")
     print("=" * 80)
-    print(f"{'Схема':<20} {'Граничные условия':<30} {'Начальное условие':<25} {'Max Error':>15} {'L2 Error':>15}")
-    print("-" * 110)
+    print(f"{'Схема':<20} {'НУ':<15} {'ГУ':<30} {'Max Error':>15} {'L2 Error':>15}")
+    print("-" * 100)
     for res in results:
-        print(f"{res['scheme']:<20} {res['boundary']:<30} {res['initial']:<25} {res['max_error']:>15.6e} {res['l2_error']:>15.6e}")
+        print(f"{res['scheme']:<20} {res['ic']:<15} {res['boundary']:<30} {res['max_error']:>15.6e} {res['l2_error']:>15.6e}")
     
     print("\n" + "=" * 80)
     print(f"Все графики сохранены в папку: {output_dir}")
