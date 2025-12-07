@@ -1,11 +1,11 @@
 """
 Лабораторная работа 6: Численные методы решения гиперболических уравнений
-Вариант 10
+Вариант 9
 
-Уравнение: ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u - cos(x) exp(-t)
-Граничные условия: u_x(0,t) = exp(-t), u_x(π,t) = -exp(-t)
-Начальные условия: u(x,0) = sin(x), u_t(x,0) = -sin(x)
-Аналитическое решение: U(x,t) = exp(-t) sin(x)
+Уравнение: ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u + sin(x) exp(-t)
+Граничные условия: u(0,t) = exp(-t), u(π,t) = -exp(-t)
+Начальные условия: u(x,0) = cos(x), u_t(x,0) = -cos(x)
+Аналитическое решение: U(x,t) = exp(-t) cos(x)
 """
 
 import numpy as np
@@ -35,33 +35,33 @@ T_MAX = 1.0
 # ============================================================================
 
 def analytical_solution(x: np.ndarray, t: float) -> np.ndarray:
-    """Аналитическое решение U(x,t) = exp(-t) sin(x)"""
-    return np.exp(-t) * np.sin(x)
+    """Аналитическое решение U(x,t) = exp(-t) cos(x)"""
+    return np.exp(-t) * np.cos(x)
 
 
 def boundary_condition_left(t: float) -> float:
-    """Левое граничное условие: u_x(0,t) = exp(-t)"""
+    """Левое граничное условие: u(0,t) = exp(-t)"""
     return np.exp(-t)
 
 
 def boundary_condition_right(t: float) -> float:
-    """Правое граничное условие: u_x(π,t) = -exp(-t)"""
+    """Правое граничное условие: u(π,t) = -exp(-t)"""
     return -np.exp(-t)
 
 
 def initial_condition_u(x: np.ndarray) -> np.ndarray:
-    """Первое начальное условие: u(x,0) = sin(x)"""
-    return np.sin(x)
+    """Первое начальное условие: u(x,0) = cos(x)"""
+    return np.cos(x)
 
 
 def initial_condition_ut(x: np.ndarray) -> np.ndarray:
-    """Второе начальное условие: u_t(x,0) = -sin(x)"""
-    return -np.sin(x)
+    """Второе начальное условие: u_t(x,0) = -cos(x)"""
+    return -np.cos(x)
 
 
 def source_term(x: np.ndarray, t: float) -> np.ndarray:
-    """Правая часть уравнения: -cos(x) exp(-t)"""
-    return -np.cos(x) * np.exp(-t)
+    """Правая часть уравнения: sin(x) exp(-t)"""
+    return np.sin(x) * np.exp(-t)
 
 
 # ============================================================================
@@ -72,63 +72,38 @@ def apply_boundary_condition_two_point_first_order(
     u: np.ndarray, h: float, f_left: float, f_right: float
 ) -> None:
     """
-    Двухточечная аппроксимация первого порядка точности.
-    u_x(0) ≈ (u_1 - u_0)/h, поэтому u_x(0) = f => (u_1 - u_0)/h = f
-    Отсюда: u_0 = u_1 - h*f
+    Граничные условия Дирихле: u(0,t) = f_left, u(π,t) = f_right
+    Для условий Дирихле просто устанавливаем значения на границах.
     """
-    # Проверка на валидность данных
-    if not np.isfinite(u[1]) or not np.isfinite(f_left):
+    if np.isfinite(f_left):
+        u[0] = f_left
+    else:
         u[0] = np.nan
-    else:
-        u[0] = u[1] - h * f_left
-        if not np.isfinite(u[0]) or abs(u[0]) > 1e10:
-            u[0] = np.nan
     
-    if not np.isfinite(u[-2]) or not np.isfinite(f_right):
-        u[-1] = np.nan
+    if np.isfinite(f_right):
+        u[-1] = f_right
     else:
-        # Для правой границы: u_x(π) ≈ (u_n - u_{n-1})/h = f
-        # Отсюда: u_n = u_{n-1} + h*f
-        u[-1] = u[-2] + h * f_right
-        if not np.isfinite(u[-1]) or abs(u[-1]) > 1e10:
-            u[-1] = np.nan
+        u[-1] = np.nan
 
 
 def apply_boundary_condition_three_point_second_order(
     u: np.ndarray, h: float, f_left: float, f_right: float
 ) -> None:
     """
-    Трехточечная аппроксимация второго порядка точности.
-    Левая граница: u_x(0) ≈ (-3*u_0 + 4*u_1 - u_2)/(2*h) = f
-    Отсюда: u_0 = (4*u_1 - u_2 - 2*h*f) / 3
-    
-    Правая граница: u_x(π) ≈ (3*u_n - 4*u_{n-1} + u_{n-2})/(2*h) = f
-    Отсюда: u_n = (4*u_{n-1} - u_{n-2} + 2*h*f) / 3
+    Граничные условия Дирихле: u(0,t) = f_left, u(π,t) = f_right
+    Для условий Дирихле просто устанавливаем значения на границах.
+    (Трехточечная аппроксимация не применима к условиям Дирихле,
+    но оставляем название для совместимости с интерфейсом)
     """
-    # Проверка на валидность данных
-    if not np.isfinite(u[1]) or not np.isfinite(u[2]) or not np.isfinite(f_left):
+    if np.isfinite(f_left):
+        u[0] = f_left
+    else:
         u[0] = np.nan
-    else:
-        denominator = 3.0
-        if abs(denominator) < 1e-15:
-            u[0] = np.nan
-        else:
-            numerator = 4 * u[1] - u[2] - 2 * h * f_left
-            u[0] = numerator / denominator
-            if not np.isfinite(u[0]) or abs(u[0]) > 1e10:
-                u[0] = np.nan
     
-    if not np.isfinite(u[-2]) or not np.isfinite(u[-3]) or not np.isfinite(f_right):
-        u[-1] = np.nan
+    if np.isfinite(f_right):
+        u[-1] = f_right
     else:
-        denominator = 3.0
-        if abs(denominator) < 1e-15:
-            u[-1] = np.nan
-        else:
-            numerator = 4 * u[-2] - u[-3] + 2 * h * f_right
-            u[-1] = numerator / denominator
-            if not np.isfinite(u[-1]) or abs(u[-1]) > 1e10:
-                u[-1] = np.nan
+        u[-1] = np.nan
 
 
 def apply_boundary_condition_two_point_second_order(
@@ -294,21 +269,26 @@ def approximate_second_initial_condition_second_order(
         u_xx[i] = (u_prev[i + 1] - 2 * u_prev[i] + u_prev[i - 1]) / (h * h)
         u_x[i] = (u_prev[i + 1] - u_prev[i - 1]) / (2 * h)
     
-    # Применяем граничные условия для вычисления производных на границах
-    boundary_func(u_prev.copy(), h, f_left, f_right)
+    # Для граничных условий Дирихле вычисляем производные на границах
+    # Левая граница: u(0) = f_left (из граничного условия)
+    # u_x[0] ≈ (u_prev[1] - u_prev[0])/h (односторонняя разность вперед)
+    # u_xx[0] ≈ (u_prev[2] - 2*u_prev[1] + u_prev[0])/h² (экстраполяция)
+    if n > 2:
+        u_x[0] = (u_prev[1] - u_prev[0]) / h
+        u_xx[0] = (u_prev[2] - 2 * u_prev[1] + u_prev[0]) / (h * h)
+    else:
+        u_x[0] = 0.0
+        u_xx[0] = 0.0
     
-    # Вычисляем u_xx и u_x на границах через ghost point
-    # Левая граница: u_x[0] = f_left (из граничного условия)
-    # u_xx[0] ≈ (u_prev[1] - 2*u_prev[0] + u_ghost)/h²
-    # где u_ghost = u_prev[1] - 2*h*f_left (из u_x[0] = (u_prev[1] - u_ghost)/(2*h) = f_left)
-    u_ghost_left = u_prev[1] - 2 * h * f_left
-    u_xx[0] = (u_prev[1] - 2 * u_prev[0] + u_ghost_left) / (h * h)
-    u_x[0] = f_left
-    
-    # Правая граница
-    u_ghost_right = u_prev[-2] + 2 * h * f_right
-    u_xx[-1] = (u_ghost_right - 2 * u_prev[-1] + u_prev[-2]) / (h * h)
-    u_x[-1] = f_right
+    # Правая граница: u(π) = f_right (из граничного условия)
+    # u_x[-1] ≈ (u_prev[-1] - u_prev[-2])/h (односторонняя разность назад)
+    # u_xx[-1] ≈ (u_prev[-1] - 2*u_prev[-2] + u_prev[-3])/h² (экстраполяция)
+    if n > 2:
+        u_x[-1] = (u_prev[-1] - u_prev[-2]) / h
+        u_xx[-1] = (u_prev[-1] - 2 * u_prev[-2] + u_prev[-3]) / (h * h)
+    else:
+        u_x[-1] = 0.0
+        u_xx[-1] = 0.0
     
     # Вычисляем u_tt из уравнения
     source = source_term(x, 0.0)
@@ -337,7 +317,7 @@ def explicit_cross_scheme(
 ) -> np.ndarray:
     """
     Явная схема крест для гиперболического уравнения.
-    ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u - cos(x) exp(-t)
+    ∂²u/∂t² + 3 ∂u/∂t = ∂²u/∂x² + ∂u/∂x - u + sin(x) exp(-t)
     
     Разностная схема:
     (u_i^{n+1} - 2*u_i^n + u_i^{n-1})/τ² + 3*(u_i^{n+1} - u_i^{n-1})/(2*τ) =
@@ -375,7 +355,7 @@ def explicit_cross_scheme(
         
         # Вычисляем новый слой
         numerator = (2.0 * u_curr[i] - u_prev[i] * (1.0 - 3.0 * tau / 2.0) +
-                    tau * tau * (u_xx + u_x - u_curr[i] - source[i]))
+                    tau * tau * (u_xx + u_x - u_curr[i] + source[i]))
         
         if not np.isfinite(numerator) or abs(numerator) > 1e10:
             return np.full(n, np.nan)
@@ -498,7 +478,7 @@ def implicit_scheme(
         a[i] = -alpha + beta
         b[i] = gamma + 2 * alpha
         c[i] = -alpha - beta
-        d[i] = 2.0 * u_curr[i] - u_prev[i] * (1.0 - 3.0 * tau / 2.0) - tau * tau * source[i]
+        d[i] = 2.0 * u_curr[i] - u_prev[i] * (1.0 - 3.0 * tau / 2.0) + tau * tau * source[i]
     
     # Используем итерации для учета граничных условий
     u_new = u_curr.copy()
@@ -602,8 +582,9 @@ def solve_pde(
     
     # Решение по времени
     for n in range(1, n_t):
-        f_left = boundary_condition_left(t[n])
-        f_right = boundary_condition_right(t[n])
+        # Используем время на следующем шаге для граничных условий (неявные схемы)
+        f_left = boundary_condition_left(t[n + 1])
+        f_right = boundary_condition_right(t[n + 1])
         
         u_next = scheme_func(u_prev, u_curr, h, tau, boundary_func, f_left, f_right, x, t[n])
         u_numerical[n + 1, :] = u_next
@@ -611,6 +592,11 @@ def solve_pde(
         # Обновляем слои
         u_prev = u_curr.copy()
         u_curr = u_next.copy()
+        
+        # Проверка на NaN/Inf
+        if np.any(~np.isfinite(u_next)):
+            print(f"Предупреждение: NaN/Inf обнаружены на шаге {n+1} для {scheme_name}")
+            break
     
     # Аналитическое решение
     u_analytical = np.zeros((n_t + 1, n_x + 1))
@@ -858,7 +844,7 @@ def main():
     
     print("=" * 80)
     print("Лабораторная работа 6: Численные методы решения гиперболических уравнений")
-    print("Вариант 10")
+    print("Вариант 9")
     print("=" * 80)
     print(f"Параметры: α = {ALPHA}, β = {BETA}, γ = {GAMMA}")
     print(f"Сетка: n_x = {n_x}, n_t = {n_t}")
