@@ -1,11 +1,11 @@
 """
 Лабораторная работа 5: Численные методы решения параболических уравнений
-Вариант 10
+Вариант 9
 
-Уравнение: ∂u/∂t = a·∂²u/∂x² + b·∂u/∂x + c·u
-Граничные условия: u_x(0,t) + u(0,t) = f1(t), u_x(π,t) + u(π,t) = f2(t)
-Начальное условие: u(x,0) = sin(x)
-Аналитическое решение: U(x,t) = exp((c-a)t)sin(x + bt)
+Уравнение: ∂u/∂t = a·∂²u/∂x² + b·∂u/∂x
+Граничные условия: u_x(0,t) - u(0,t) = -exp(-at)(cos(bt) + sin(bt)), u_x(π,t) - u(π,t) = exp(-at)(cos(bt) + sin(bt))
+Начальное условие: u(x,0) = cos(x)
+Аналитическое решение: U(x,t) = exp(-at) cos(x + bt)
 """
 
 import numpy as np
@@ -18,10 +18,9 @@ import os
 # Параметры задачи
 # ============================================================================
 
-# Параметры уравнения (вариант 10)
+# Параметры уравнения (вариант 9)
 A = 1.0  # a > 0
 B = 1.0  # b > 0
-C = -0.5  # c < 0
 
 # Область решения
 X_MIN = 0.0
@@ -34,23 +33,23 @@ T_MAX = 1.0
 # ============================================================================
 
 def analytical_solution(x: np.ndarray, t: float) -> np.ndarray:
-    """Аналитическое решение U(x,t) = exp((c-a)t)sin(x + bt)"""
-    return np.exp((C - A) * t) * np.sin(x + B * t)
+    """Аналитическое решение U(x,t) = exp(-at) cos(x + bt)"""
+    return np.exp(-A * t) * np.cos(x + B * t)
 
 
 def boundary_condition_left(t: float) -> float:
-    """Левое граничное условие: u_x(0,t) + u(0,t) = exp((c-a)t)(cos(bt) + sin(bt))"""
-    return np.exp((C - A) * t) * (np.cos(B * t) + np.sin(B * t))
+    """Левое граничное условие: u_x(0,t) - u(0,t) = -exp(-at)(cos(bt) + sin(bt))"""
+    return -np.exp(-A * t) * (np.cos(B * t) + np.sin(B * t))
 
 
 def boundary_condition_right(t: float) -> float:
-    """Правое граничное условие: u_x(π,t) + u(π,t) = -exp((c-a)t)(cos(bt) + sin(bt))"""
-    return -np.exp((C - A) * t) * (np.cos(B * t) + np.sin(B * t))
+    """Правое граничное условие: u_x(π,t) - u(π,t) = exp(-at)(cos(bt) + sin(bt))"""
+    return np.exp(-A * t) * (np.cos(B * t) + np.sin(B * t))
 
 
 def initial_condition(x: np.ndarray) -> np.ndarray:
-    """Начальное условие: u(x,0) = sin(x)"""
-    return np.sin(x)
+    """Начальное условие: u(x,0) = cos(x)"""
+    return np.cos(x)
 
 
 # ============================================================================
@@ -62,14 +61,14 @@ def apply_boundary_condition_two_point_first_order(
 ) -> None:
     """
     Двухточечная аппроксимация первого порядка точности.
-    u_x(0) ≈ (u_1 - u_0)/h, поэтому u_x(0) + u_0 = f => (u_1 - u_0)/h + u_0 = f
-    Отсюда: u_0 = (u_1 - h*f) / (1 + h)
+    u_x(0) ≈ (u_1 - u_0)/h, поэтому u_x(0) - u_0 = f => (u_1 - u_0)/h - u_0 = f
+    Отсюда: u_0 = (u_1 - h*f) / (1 - h)
     """
     # Проверка на валидность данных
     if not np.isfinite(u[1]) or not np.isfinite(f_left):
         u[0] = np.nan
     else:
-        denominator = 1 + h
+        denominator = 1 - h
         if abs(denominator) < 1e-15:
             u[0] = np.nan
         else:
@@ -81,7 +80,7 @@ def apply_boundary_condition_two_point_first_order(
     if not np.isfinite(u[-2]) or not np.isfinite(f_right):
         u[-1] = np.nan
     else:
-        denominator = 1 + h
+        denominator = 1 - h
         if abs(denominator) < 1e-15:
             u[-1] = np.nan
         else:
@@ -97,18 +96,18 @@ def apply_boundary_condition_three_point_second_order(
     """
     Трехточечная аппроксимация второго порядка точности.
     Левая граница: u_x(0) ≈ (-3*u_0 + 4*u_1 - u_2)/(2*h)
-    u_x(0) + u_0 = f => (-3*u_0 + 4*u_1 - u_2)/(2*h) + u_0 = f
-    Отсюда: u_0 = (4*u_1 - u_2 - 2*h*f) / (3 - 2*h)
+    u_x(0) - u_0 = f => (-3*u_0 + 4*u_1 - u_2)/(2*h) - u_0 = f
+    Отсюда: u_0 = (4*u_1 - u_2 - 2*h*f) / (3 + 2*h)
     
     Правая граница: u_x(π) ≈ (3*u_n - 4*u_{n-1} + u_{n-2})/(2*h)
-    u_x(π) + u_n = f => (3*u_n - 4*u_{n-1} + u_{n-2})/(2*h) + u_n = f
-    Отсюда: u_n = (4*u_{n-1} - u_{n-2} + 2*h*f) / (3 + 2*h)
+    u_x(π) - u_n = f => (3*u_n - 4*u_{n-1} + u_{n-2})/(2*h) - u_n = f
+    Отсюда: u_n = (4*u_{n-1} - u_{n-2} + 2*h*f) / (3 - 2*h)
     """
     # Проверка на валидность данных
     if not np.isfinite(u[1]) or not np.isfinite(u[2]) or not np.isfinite(f_left):
         u[0] = np.nan
     else:
-        denominator = 3 - 2 * h
+        denominator = 3 + 2 * h
         if abs(denominator) < 1e-15:
             u[0] = np.nan
         else:
@@ -120,7 +119,7 @@ def apply_boundary_condition_three_point_second_order(
     if not np.isfinite(u[-2]) or not np.isfinite(u[-3]) or not np.isfinite(f_right):
         u[-1] = np.nan
     else:
-        denominator = 3 + 2 * h
+        denominator = 3 - 2 * h
         if abs(denominator) < 1e-15:
             u[-1] = np.nan
         else:
@@ -139,34 +138,34 @@ def apply_boundary_condition_two_point_second_order(
     Метод: используем симметричную формулу для u_x(0) второго порядка:
     u_x(0) ≈ (u_1 - u_{-1})/(2*h)
     
-    Из граничного условия: u_x(0) + u_0 = f
-    (u_1 - u_{-1})/(2*h) + u_0 = f
-    u_1 - u_{-1} + 2*h*u_0 = 2*h*f
-    u_{-1} = u_1 + 2*h*u_0 - 2*h*f
+    Из граничного условия: u_x(0) - u_0 = f
+    (u_1 - u_{-1})/(2*h) - u_0 = f
+    u_1 - u_{-1} - 2*h*u_0 = 2*h*f
+    u_{-1} = u_1 - 2*h*u_0 - 2*h*f
     
     Используем стандартную формулу для u_xx(0):
     u_xx(0) ≈ (u_1 - 2*u_0 + u_{-1})/h²
     
     Подставляя u_{-1}:
-    u_xx(0) ≈ (u_1 - 2*u_0 + u_1 + 2*h*u_0 - 2*h*f)/h²
-    u_xx(0) ≈ 2*(u_1 - u_0 + h*u_0 - h*f)/h²
+    u_xx(0) ≈ (u_1 - 2*u_0 + u_1 - 2*h*u_0 - 2*h*f)/h²
+    u_xx(0) ≈ 2*(u_1 - u_0 - h*u_0 - h*f)/h²
     
     Используем формулу второго порядка с поправкой:
     u_x(0) ≈ (u_1 - u_0)/h - (h/2)*u_xx(0)
     
-    Из граничного условия: u_x(0) + u_0 = f
-    (u_1 - u_0)/h - (h/2)*u_xx(0) + u_0 = f
+    Из граничного условия: u_x(0) - u_0 = f
+    (u_1 - u_0)/h - (h/2)*u_xx(0) - u_0 = f
     
     Подставляя u_xx(0) и решая, получаем:
-    u_0 = (u_1 - h*f) / (1 + h - h²/2)
+    u_0 = (u_1 - h*f) / (1 - h + h²/2)
     """
     # Проверка на валидность данных
     if not np.isfinite(u[1]) or not np.isfinite(f_left):
         u[0] = np.nan
     else:
         # Используем формулу второго порядка через ghost point
-        # u_0 = (u_1 - h*f) / (1 + h - h²/2)
-        denominator = 1.0 + h - (h * h) / 2.0
+        # u_0 = (u_1 - h*f) / (1 - h + h²/2)
+        denominator = 1.0 - h + (h * h) / 2.0
         if abs(denominator) < 1e-15:
             u[0] = np.nan
         else:
@@ -184,9 +183,9 @@ def apply_boundary_condition_two_point_second_order(
         u[-1] = np.nan
     else:
         # Для правой границы: u_x(π) ≈ (u_{n+1} - u_{n-1})/(2*h)
-        # Из граничного условия: u_x(π) + u_n = f
-        # u_n = (u_{n-1} + h*f) / (1 + h - h²/2)
-        denominator = 1.0 + h - (h * h) / 2.0
+        # Из граничного условия: u_x(π) - u_n = f
+        # u_n = (u_{n-1} + h*f) / (1 - h + h²/2)
+        denominator = 1.0 - h + (h * h) / 2.0
         if abs(denominator) < 1e-15:
             u[-1] = np.nan
         else:
@@ -215,8 +214,7 @@ def explicit_scheme(
     """
     Явная конечно-разностная схема.
     u_i^{n+1} = u_i^n + τ*(a*(u_{i+1}^n - 2*u_i^n + u_{i-1}^n)/h² 
-                      + b*(u_{i+1}^n - u_{i-1}^n)/(2*h) 
-                      + c*u_i^n)
+                      + b*(u_{i+1}^n - u_{i-1}^n)/(2*h))
     
     Условие устойчивости: τ ≤ min(h²/(2a), h/|b|) для конвекции-диффузии
     """
@@ -250,7 +248,7 @@ def explicit_scheme(
                 if not np.isfinite(u_xx) or not np.isfinite(u_x):
                     return np.full(n, np.nan)
                 
-                u_new[i] = u_new[i] + tau_sub * (A * u_xx + B * u_x + C * u_new[i])
+                u_new[i] = u_new[i] + tau_sub * (A * u_xx + B * u_x)
                 
                 # Проверка на overflow после вычисления
                 if not np.isfinite(u_new[i]) or abs(u_new[i]) > 1e10:
@@ -276,7 +274,7 @@ def explicit_scheme(
             if not np.isfinite(u_xx) or not np.isfinite(u_x):
                 return np.full(n, np.nan)
             
-            u_new[i] = u[i] + tau * (A * u_xx + B * u_x + C * u[i])
+            u_new[i] = u[i] + tau * (A * u_xx + B * u_x)
             
             # Проверка на overflow после вычисления
             if not np.isfinite(u_new[i]) or abs(u_new[i]) > 1e10:
@@ -359,7 +357,7 @@ def implicit_scheme(
 ) -> np.ndarray:
     """
     Неявная конечно-разностная схема.
-    Решаем систему: u_i^{n+1} - τ*(a*u_xx^{n+1} + b*u_x^{n+1} + c*u_i^{n+1}) = u_i^n
+    Решаем систему: u_i^{n+1} - τ*(a*u_xx^{n+1} + b*u_x^{n+1}) = u_i^n
     Используем метод прогонки для решения системы линейных уравнений.
     Граничные условия включаются в систему через аппроксимацию производной.
     """
@@ -368,7 +366,7 @@ def implicit_scheme(
     # Коэффициенты разностной схемы
     alpha = tau * A / (h * h)
     beta = tau * B / (2 * h)
-    gamma = 1 - tau * C  # коэффициент при u_i^{n+1}
+    gamma = 1.0  # коэффициент при u_i^{n+1}
     
     # Строим трехдиагональную систему
     # Для внутренних точек: (-α + β)*u_{i-1} + (γ + 2*α)*u_i + (-α - β)*u_{i+1} = u_i^n
@@ -458,7 +456,7 @@ def crank_nicolson_scheme(
     """
     Схема Кранка-Николсона (полусумма явной и неявной схем).
     u_i^{n+1} - u_i^n = (τ/2)*[L(u^n) + L(u^{n+1})]
-    где L(u) = a*u_xx + b*u_x + c*u
+    где L(u) = a*u_xx + b*u_x
     
     Переписываем в виде:
     u_i^{n+1} - (τ/2)*L(u^{n+1}) = u_i^n + (τ/2)*L(u^n)
@@ -468,7 +466,7 @@ def crank_nicolson_scheme(
     # Коэффициенты разностной схемы
     alpha = tau * A / (2 * h * h)  # для неявной части
     beta = tau * B / (4 * h)  # для неявной части
-    gamma = 1 - tau * C / 2  # коэффициент при u_i^{n+1}
+    gamma = 1.0  # коэффициент при u_i^{n+1}
     
     # Проверка на валидность входных данных
     if np.any(~np.isfinite(u)):
@@ -488,7 +486,7 @@ def crank_nicolson_scheme(
         if not np.isfinite(u_xx_n) or not np.isfinite(u_x_n):
             return np.full(n, np.nan)
         
-        explicit_rhs[i] = u[i] + (tau / 2) * (A * u_xx_n + B * u_x_n + C * u[i])
+        explicit_rhs[i] = u[i] + (tau / 2) * (A * u_xx_n + B * u_x_n)
         
         # Проверка на overflow после вычисления
         if not np.isfinite(explicit_rhs[i]) or abs(explicit_rhs[i]) > 1e10:
@@ -601,11 +599,18 @@ def solve_pde(
     
     # Решение по времени
     for n in range(n_t):
-        f_left = boundary_condition_left(t[n])
-        f_right = boundary_condition_right(t[n])
+        # Используем время на следующем шаге для граничных условий (неявные схемы)
+        # или текущее время (явные схемы) - зависит от схемы
+        f_left = boundary_condition_left(t[n + 1])
+        f_right = boundary_condition_right(t[n + 1])
         
         u = scheme_func(u, h, tau, boundary_func, f_left, f_right)
         u_numerical[n + 1, :] = u
+        
+        # Проверка на NaN/Inf
+        if np.any(~np.isfinite(u)):
+            print(f"Предупреждение: NaN/Inf обнаружены на шаге {n+1} для {scheme_name}")
+            break
     
     # Аналитическое решение
     u_analytical = np.zeros((n_t + 1, n_x + 1))
@@ -844,9 +849,9 @@ def main():
     
     print("=" * 80)
     print("Лабораторная работа 5: Численные методы решения параболических уравнений")
-    print("Вариант 10")
+    print("Вариант 9")
     print("=" * 80)
-    print(f"Параметры: a = {A}, b = {B}, c = {C}")
+    print(f"Параметры: a = {A}, b = {B}")
     print(f"Сетка: n_x = {n_x}, n_t = {n_t}")
     print(f"Шаги: h = {(X_MAX - X_MIN) / n_x:.6f}, τ = {T_MAX / n_t:.6f}")
     print("=" * 80)
