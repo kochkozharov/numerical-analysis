@@ -460,39 +460,47 @@ def plot_solution(
 ):
     """Визуализация решения"""
     X, Y = np.meshgrid(x, y, indexing='ij')
+
+    # Общий диапазон значений для численного и аналитического решений
+    u_min = min(np.min(u_numerical), np.min(u_analytical))
+    u_max = max(np.max(u_numerical), np.max(u_analytical))
     
     fig = plt.figure(figsize=(16, 12))
     
     # 3D графики
     ax1 = fig.add_subplot(2, 2, 1, projection='3d')
-    surf1 = ax1.plot_surface(X, Y, u_numerical, cmap='viridis', alpha=0.8)
+    surf1 = ax1.plot_surface(X, Y, u_numerical, cmap='viridis', alpha=0.8, vmin=u_min, vmax=u_max)
     ax1.set_xlabel('x')
     ax1.set_ylabel('y')
     ax1.set_zlabel('u(x,y)')
     ax1.set_title('Численное решение')
+    ax1.set_zlim(u_min, u_max)
     plt.colorbar(surf1, ax=ax1, shrink=0.5)
     
     ax2 = fig.add_subplot(2, 2, 2, projection='3d')
-    surf2 = ax2.plot_surface(X, Y, u_analytical, cmap='viridis', alpha=0.8)
+    surf2 = ax2.plot_surface(X, Y, u_analytical, cmap='viridis', alpha=0.8, vmin=u_min, vmax=u_max)
     ax2.set_xlabel('x')
     ax2.set_ylabel('y')
     ax2.set_zlabel('u(x,y)')
     ax2.set_title('Аналитическое решение')
+    ax2.set_zlim(u_min, u_max)
     plt.colorbar(surf2, ax=ax2, shrink=0.5)
     
     # 2D контурные графики
     ax3 = fig.add_subplot(2, 2, 3)
-    contour1 = ax3.contourf(X, Y, u_numerical, levels=20, cmap='viridis')
+    contour1 = ax3.contourf(X, Y, u_numerical, levels=20, cmap='viridis', vmin=u_min, vmax=u_max)
     ax3.set_xlabel('x')
     ax3.set_ylabel('y')
     ax3.set_title('Численное решение (контуры)')
+    ax3.set_aspect('equal', adjustable='box')
     plt.colorbar(contour1, ax=ax3)
     
     ax4 = fig.add_subplot(2, 2, 4)
-    contour2 = ax4.contourf(X, Y, u_analytical, levels=20, cmap='viridis')
+    contour2 = ax4.contourf(X, Y, u_analytical, levels=20, cmap='viridis', vmin=u_min, vmax=u_max)
     ax4.set_xlabel('x')
     ax4.set_ylabel('y')
     ax4.set_title('Аналитическое решение (контуры)')
+    ax4.set_aspect('equal', adjustable='box')
     plt.colorbar(contour2, ax=ax4)
     
     plt.suptitle(f'Решение: {method_name}', fontsize=14)
@@ -647,6 +655,7 @@ def main():
         l2_err = compute_l2_error(u_num, u_anal, (X_MAX - X_MIN) / n_x, (Y_MAX - Y_MIN) / n_y)
         
         print(f"Количество итераций: {iterations}")
+        print(f"Критерий остановки: max_diff < 1.0e-6")
         print(f"Максимальная погрешность: {max_err:.6e}")
         print(f"L2 норма погрешности: {l2_err:.6e}")
         
