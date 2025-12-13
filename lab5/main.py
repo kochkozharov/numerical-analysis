@@ -62,13 +62,13 @@ def apply_boundary_condition_two_point_first_order(
     """
     Двухточечная аппроксимация первого порядка точности.
     u_x(0) ≈ (u_1 - u_0)/h, поэтому u_x(0) - u_0 = f => (u_1 - u_0)/h - u_0 = f
-    Отсюда: u_0 = (u_1 - h*f) / (1 - h)
+    Отсюда: u_0 = (u_1 - h*f) / (1 + h)
     """
     # Проверка на валидность данных
     if not np.isfinite(u[1]) or not np.isfinite(f_left):
         u[0] = np.nan
     else:
-        denominator = 1 - h
+        denominator = 1 + h
         if abs(denominator) < 1e-15:
             u[0] = np.nan
         else:
@@ -235,27 +235,44 @@ def explicit_scheme(
         num_substeps = int(np.ceil(tau / max_tau)) + 1
         tau_sub = tau / num_substeps
         for _ in range(num_substeps):
+            u_prev = u_new.copy()
+            u_tmp = u_new.copy()
             # Внутренние точки
             for i in range(1, n - 1):
                 # Проверка на валидность данных
-                if not np.isfinite(u_new[i + 1]) or not np.isfinite(u_new[i]) or not np.isfinite(u_new[i - 1]):
+                if not np.isfinite(u_prev[i + 1]) or not np.isfinite(u_prev[i]) or not np.isfinite(u_prev[i - 1]):
                     return np.full(n, np.nan)
                 
-                u_xx = (u_new[i + 1] - 2 * u_new[i] + u_new[i - 1]) / (h * h)
-                u_x = (u_new[i + 1] - u_new[i - 1]) / (2 * h)
+                u_xx = (u_prev[i + 1] - 2 * u_prev[i] + u_prev[i - 1]) / (h * h)
+                u_x = (u_prev[i + 1] - u_prev[i - 1]) / (2 * h)
                 
                 # Проверка на overflow
                 if not np.isfinite(u_xx) or not np.isfinite(u_x):
                     return np.full(n, np.nan)
                 
-                u_new[i] = u_new[i] + tau_sub * (A * u_xx + B * u_x)
+                u_tmp[i] = u_prev[i] + tau_sub * (A * u_xx + B * u_x)
                 
                 # Проверка на overflow после вычисления
-                if not np.isfinite(u_new[i]) or abs(u_new[i]) > 1e10:
+                if not np.isfinite(u_tmp[i]) or abs(u_tmp[i]) > 1e10:
                     return np.full(n, np.nan)
+
+            u_new = u_tmp
             
             # Применяем граничные условия
-            boundary_func(u_new, h, f_left, f_right)
+            if boundary_func is apply_boundary_condition_two_point_second_order:
+                coef_l = 1.0 + h + (h * h / (2.0 * A)) * (1.0 / tau_sub - B)
+                const_l = h * f_left + (h * h / (2.0 * A)) * (-(u_prev[0] / tau_sub) - B * f_left)
+                if abs(coef_l) < 1e-15:
+                    return np.full(n, np.nan)
+                u_new[0] = (u_new[1] - const_l) / coef_l
+
+                coef_r = 1.0 - h + (h * h / (2.0 * A)) * (1.0 / tau_sub - B)
+                const_r = -h * f_right + (h * h / (2.0 * A)) * (-(u_prev[-1] / tau_sub) - B * f_right)
+                if abs(coef_r) < 1e-15:
+                    return np.full(n, np.nan)
+                u_new[-1] = (u_new[-2] - const_r) / coef_r
+            else:
+                boundary_func(u_new, h, f_left, f_right)
             
             # Проверка после граничных условий
             if np.any(~np.isfinite(u_new)):
@@ -279,9 +296,22 @@ def explicit_scheme(
             # Проверка на overflow после вычисления
             if not np.isfinite(u_new[i]) or abs(u_new[i]) > 1e10:
                 return np.full(n, np.nan)
-        
+
         # Применяем граничные условия
-        boundary_func(u_new, h, f_left, f_right)
+        if boundary_func is apply_boundary_condition_two_point_second_order:
+            coef_l = 1.0 + h + (h * h / (2.0 * A)) * (1.0 / tau - B)
+            const_l = h * f_left + (h * h / (2.0 * A)) * (-(u[0] / tau) - B * f_left)
+            if abs(coef_l) < 1e-15:
+                return np.full(n, np.nan)
+            u_new[0] = (u_new[1] - const_l) / coef_l
+
+            coef_r = 1.0 - h + (h * h / (2.0 * A)) * (1.0 / tau - B)
+            const_r = -h * f_right + (h * h / (2.0 * A)) * (-(u[-1] / tau) - B * f_right)
+            if abs(coef_r) < 1e-15:
+                return np.full(n, np.nan)
+            u_new[-1] = (u_new[-2] - const_r) / coef_r
+        else:
+            boundary_func(u_new, h, f_left, f_right)
         
         # Проверка после граничных условий
         if np.any(~np.isfinite(u_new)):
@@ -347,6 +377,36 @@ def thomas_algorithm(a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray)
     return x
 
 
+def _boundary_relations(
+    boundary_func: Callable[[np.ndarray, float, float, float], None],
+    h: float,
+    f_left: float,
+    f_right: float,
+) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
+    if boundary_func is apply_boundary_condition_two_point_first_order:
+        denom_l = 1.0 + h
+        denom_r = 1.0 - h
+        return (
+            (1.0 / denom_l, 0.0, (-h * f_left) / denom_l),
+            (1.0 / denom_r, 0.0, (h * f_right) / denom_r),
+        )
+    if boundary_func is apply_boundary_condition_three_point_second_order:
+        denom_l = 3.0 + 2.0 * h
+        denom_r = 3.0 - 2.0 * h
+        return (
+            (4.0 / denom_l, -1.0 / denom_l, (-2.0 * h * f_left) / denom_l),
+            (4.0 / denom_r, -1.0 / denom_r, (2.0 * h * f_right) / denom_r),
+        )
+    if boundary_func is apply_boundary_condition_two_point_second_order:
+        denom_l = 1.0 - h + (h * h) / 2.0
+        denom_r = 1.0 - h + (h * h) / 2.0
+        return (
+            (1.0 / denom_l, 0.0, (-h * f_left) / denom_l),
+            (1.0 / denom_r, 0.0, (h * f_right) / denom_r),
+        )
+    raise ValueError("Unknown boundary approximation")
+
+
 def implicit_scheme(
     u: np.ndarray,
     h: float,
@@ -362,86 +422,77 @@ def implicit_scheme(
     Граничные условия включаются в систему через аппроксимацию производной.
     """
     n = len(u)
+
+    if n < 3:
+        return u.copy()
     
     # Коэффициенты разностной схемы
     alpha = tau * A / (h * h)
     beta = tau * B / (2 * h)
     gamma = 1.0  # коэффициент при u_i^{n+1}
     
-    # Строим трехдиагональную систему
-    # Для внутренних точек: (-α + β)*u_{i-1} + (γ + 2*α)*u_i + (-α - β)*u_{i+1} = u_i^n
-    
-    a = np.zeros(n)  # коэффициенты при u_{i-1}
-    b = np.zeros(n)  # коэффициенты при u_i
-    c = np.zeros(n)  # коэффициенты при u_{i+1}
-    d = np.zeros(n)  # правая часть
-    
-    # Внутренние точки
-    for i in range(1, n - 1):
-        a[i] = -alpha + beta
-        b[i] = gamma + 2 * alpha
-        c[i] = -alpha - beta
-        d[i] = u[i]
-    
-    # Проверка на валидность входных данных
     if np.any(~np.isfinite(u)):
         return np.full(n, np.nan)
-    
-    # Граничные условия включаем через итерации
-    # Используем метод простых итераций для учета граничных условий
+
+    (p1, p2, q), (r1, r2, s) = _boundary_relations(boundary_func, h, f_left, f_right)
+    if boundary_func is apply_boundary_condition_two_point_second_order:
+        k_l = 1.0 - (h * B) / (2.0 * A)
+        denom_l = k_l + (1.0 / h) + h / (2.0 * A * tau)
+        k_r = 1.0 + (h * B) / (2.0 * A)
+        denom_r = (1.0 / h) + h / (2.0 * A * tau) - k_r
+        if abs(denom_l) < 1e-15 or abs(denom_r) < 1e-15:
+            return np.full(n, np.nan)
+
+        p1 = (1.0 / h) / denom_l
+        p2 = 0.0
+        q = ((h / (2.0 * A * tau)) * u[0] - k_l * f_left) / denom_l
+
+        r1 = (1.0 / h) / denom_r
+        r2 = 0.0
+        s = ((h / (2.0 * A * tau)) * u[-1] + k_r * f_right) / denom_r
+
+    m = n - 2
+    a_red = np.zeros(m)
+    b_red = np.zeros(m)
+    c_red = np.zeros(m)
+    d_red = np.zeros(m)
+
+    a0 = -alpha + beta
+    b0 = gamma + 2.0 * alpha
+    c0 = -alpha - beta
+
+    i = 1
+    j = 0
+    b_red[j] = b0 + a0 * p1
+    c_red[j] = c0 + a0 * p2
+    d_red[j] = u[i] - a0 * q
+
+    for i in range(2, n - 2):
+        j = i - 1
+        a_red[j] = a0
+        b_red[j] = b0
+        c_red[j] = c0
+        d_red[j] = u[i]
+
+    i = n - 2
+    j = m - 1
+    a_red[j] = a0 + c0 * r2
+    b_red[j] = b0 + c0 * r1
+    c_red[j] = 0.0
+    d_red[j] = u[i] - c0 * s
+
+    u_inner = thomas_algorithm(a_red, b_red, c_red, d_red)
+    if np.any(~np.isfinite(u_inner)):
+        return np.full(n, np.nan)
+
     u_new = u.copy()
-    max_iter = 20
-    tolerance = 1e-8
-    
-    for iteration in range(max_iter):
-        u_old = u_new.copy()
-        
-        # Проверка на overflow перед применением граничных условий
-        if np.any(~np.isfinite(u_new)) or np.any(np.abs(u_new) > 1e10):
-            return np.full(n, np.nan)
-        
-        # Применяем граничные условия к текущему приближению
-        boundary_func(u_new, h, f_left, f_right)
-        
-        # Проверка после применения граничных условий
-        if np.any(~np.isfinite(u_new)):
-            return np.full(n, np.nan)
-        
-        # Модифицируем систему: граничные точки фиксированы из граничных условий
-        b[0] = 1.0
-        c[0] = 0.0
-        d[0] = u_new[0]
-        
-        a[n - 1] = 0.0
-        b[n - 1] = 1.0
-        d[n - 1] = u_new[n - 1]
-        
-        # Решаем систему методом прогонки
-        u_new = thomas_algorithm(a.copy(), b.copy(), c.copy(), d.copy())
-        
-        # Проверка на валидность решения
-        if np.any(~np.isfinite(u_new)):
-            return np.full(n, np.nan)
-        
-        # Проверка сходимости
-        diff = u_new - u_old
-        if np.any(~np.isfinite(diff)):
-            return np.full(n, np.nan)
-        
-        max_diff = np.max(np.abs(diff))
-        if not np.isfinite(max_diff):
-            return np.full(n, np.nan)
-        
-        if max_diff < tolerance:
-            break
-    
-    # Финальное применение граничных условий
-    boundary_func(u_new, h, f_left, f_right)
-    
-    # Финальная проверка
+    u_new[1:-1] = u_inner
+    u_new[0] = p1 * u_new[1] + p2 * u_new[2] + q
+    u_new[-1] = r1 * u_new[-2] + r2 * u_new[-3] + s
+
     if np.any(~np.isfinite(u_new)):
         return np.full(n, np.nan)
-    
+
     return u_new
 
 
@@ -462,6 +513,9 @@ def crank_nicolson_scheme(
     u_i^{n+1} - (τ/2)*L(u^{n+1}) = u_i^n + (τ/2)*L(u^n)
     """
     n = len(u)
+
+    if n < 3:
+        return u.copy()
     
     # Коэффициенты разностной схемы
     alpha = tau * A / (2 * h * h)  # для неявной части
@@ -492,77 +546,65 @@ def crank_nicolson_scheme(
         if not np.isfinite(explicit_rhs[i]) or abs(explicit_rhs[i]) > 1e10:
             return np.full(n, np.nan)
     
-    # Строим трехдиагональную систему для неявной части
-    a = np.zeros(n)
-    b = np.zeros(n)
-    c = np.zeros(n)
-    d = np.zeros(n)
-    
-    # Внутренние точки
-    for i in range(1, n - 1):
-        a[i] = -alpha + beta
-        b[i] = gamma + 2 * alpha
-        c[i] = -alpha - beta
-        d[i] = explicit_rhs[i]
-        
-        # Проверка на валидность коэффициентов
-        if not np.isfinite(a[i]) or not np.isfinite(b[i]) or not np.isfinite(c[i]) or not np.isfinite(d[i]):
+    (p1, p2, q), (r1, r2, s) = _boundary_relations(boundary_func, h, f_left, f_right)
+    if boundary_func is apply_boundary_condition_two_point_second_order:
+        k_l = 1.0 - (h * B) / (2.0 * A)
+        denom_l = k_l + (1.0 / h) + h / (2.0 * A * tau)
+        k_r = 1.0 + (h * B) / (2.0 * A)
+        denom_r = (1.0 / h) + h / (2.0 * A * tau) - k_r
+        if abs(denom_l) < 1e-15 or abs(denom_r) < 1e-15:
             return np.full(n, np.nan)
-    
-    # Используем итерации для учета граничных условий
+
+        p1 = (1.0 / h) / denom_l
+        p2 = 0.0
+        q = ((h / (2.0 * A * tau)) * u[0] - k_l * f_left) / denom_l
+
+        r1 = (1.0 / h) / denom_r
+        r2 = 0.0
+        s = ((h / (2.0 * A * tau)) * u[-1] + k_r * f_right) / denom_r
+
+    m = n - 2
+    a_red = np.zeros(m)
+    b_red = np.zeros(m)
+    c_red = np.zeros(m)
+    d_red = np.zeros(m)
+
+    a0 = -alpha + beta
+    b0 = gamma + 2.0 * alpha
+    c0 = -alpha - beta
+
+    i = 1
+    j = 0
+    b_red[j] = b0 + a0 * p1
+    c_red[j] = c0 + a0 * p2
+    d_red[j] = explicit_rhs[i] - a0 * q
+
+    for i in range(2, n - 2):
+        j = i - 1
+        a_red[j] = a0
+        b_red[j] = b0
+        c_red[j] = c0
+        d_red[j] = explicit_rhs[i]
+
+    i = n - 2
+    j = m - 1
+    a_red[j] = a0 + c0 * r2
+    b_red[j] = b0 + c0 * r1
+    c_red[j] = 0.0
+    d_red[j] = explicit_rhs[i] - c0 * s
+
+    u_inner = thomas_algorithm(a_red, b_red, c_red, d_red)
+    if np.any(~np.isfinite(u_inner)):
+        return np.full(n, np.nan)
+
     u_new = u.copy()
-    max_iter = 20
-    tolerance = 1e-8
-    
-    for iteration in range(max_iter):
-        u_old = u_new.copy()
-        
-        # Проверка на overflow перед применением граничных условий
-        if np.any(~np.isfinite(u_new)) or np.any(np.abs(u_new) > 1e10):
-            return np.full(n, np.nan)
-        
-        # Применяем граничные условия
-        boundary_func(u_new, h, f_left, f_right)
-        
-        # Проверка после применения граничных условий
-        if np.any(~np.isfinite(u_new)):
-            return np.full(n, np.nan)
-        
-        # Модифицируем систему с учетом граничных условий
-        b[0] = 1.0
-        c[0] = 0.0
-        d[0] = u_new[0]
-        
-        a[n - 1] = 0.0
-        b[n - 1] = 1.0
-        d[n - 1] = u_new[n - 1]
-        
-        # Решаем систему методом прогонки
-        u_new = thomas_algorithm(a.copy(), b.copy(), c.copy(), d.copy())
-        
-        # Проверка на валидность решения
-        if np.any(~np.isfinite(u_new)):
-            return np.full(n, np.nan)
-        
-        # Проверка сходимости
-        diff = u_new - u_old
-        if np.any(~np.isfinite(diff)):
-            return np.full(n, np.nan)
-        
-        max_diff = np.max(np.abs(diff))
-        if not np.isfinite(max_diff):
-            return np.full(n, np.nan)
-        
-        if max_diff < tolerance:
-            break
-    
-    # Финальное применение граничных условий
-    boundary_func(u_new, h, f_left, f_right)
-    
-    # Финальная проверка
+    u_new[1:-1] = u_inner
+    u_new[0] = p1 * u_new[1] + p2 * u_new[2] + q
+    u_new[-1] = r1 * u_new[-2] + r2 * u_new[-3] + s
+
     if np.any(~np.isfinite(u_new)):
         return np.full(n, np.nan)
-    
+
     return u_new
 
 
@@ -601,8 +643,9 @@ def solve_pde(
     for n in range(n_t):
         # Используем время на следующем шаге для граничных условий (неявные схемы)
         # или текущее время (явные схемы) - зависит от схемы
-        f_left = boundary_condition_left(t[n + 1])
-        f_right = boundary_condition_right(t[n + 1])
+        t_bc = t[n + 1]
+        f_left = boundary_condition_left(t_bc)
+        f_right = boundary_condition_right(t_bc)
         
         u = scheme_func(u, h, tau, boundary_func, f_left, f_right)
         u_numerical[n + 1, :] = u
@@ -893,26 +936,33 @@ def main():
     
     n_x_values = [20, 30, 40, 50, 60, 80, 100]
     n_t_values = [50, 75, 100, 150, 200]
-    
-    # Исследуем для лучшей комбинации (например, Кранк-Николсон + трехточечная 2-го порядка)
-    scheme_func = crank_nicolson_scheme
-    boundary_func = apply_boundary_condition_three_point_second_order
-    scheme_name = "Кранк-Николсон"
-    boundary_name = "Трехточечная_2-го_порядка"
-    
-    print(f"\nИсследование для: {scheme_name} + {boundary_name.replace('_', ' ')}")
-    h_vals, tau_vals, max_errs, l2_errs = study_grid_dependence(
-        scheme_func, boundary_func, n_x_values, n_t_values, scheme_name
-    )
-    
-    plot_grid_dependence(h_vals, tau_vals, max_errs, l2_errs, scheme_name, boundary_name, output_dir)
-    
-    # Вывод результатов исследования
-    print("\nРезультаты исследования зависимости от параметров сетки:")
-    print(f"{'h':>12} {'τ':>12} {'Max Error':>15} {'L2 Error':>15}")
-    print("-" * 60)
-    for i in range(min(20, len(h_vals))):  # Показываем первые 20
-        print(f"{h_vals[i]:>12.6f} {tau_vals[i]:>12.6f} {max_errs[i]:>15.6e} {l2_errs[i]:>15.6e}")
+
+    # Строим графики зависимости для всех комбинаций схем и аппроксимаций ГУ
+    for scheme_func, scheme_name in schemes:
+        for boundary_func, boundary_name in boundary_approximations:
+            boundary_name_safe = boundary_name.replace(" ", "_")
+            print(f"\nИсследование для: {scheme_name} + {boundary_name}")
+
+            h_vals, tau_vals, max_errs, l2_errs = study_grid_dependence(
+                scheme_func, boundary_func, n_x_values, n_t_values, scheme_name
+            )
+
+            plot_grid_dependence(
+                h_vals,
+                tau_vals,
+                max_errs,
+                l2_errs,
+                scheme_name,
+                boundary_name_safe,
+                output_dir,
+            )
+
+            # Выводим краткий срез (первые 5 точек), чтобы не засорять лог
+            print("Результаты (первые 5):")
+            print(f"{'h':>12} {'τ':>12} {'Max Error':>15} {'L2 Error':>15}")
+            print("-" * 60)
+            for i in range(min(5, len(h_vals))):
+                print(f"{h_vals[i]:>12.6f} {tau_vals[i]:>12.6f} {max_errs[i]:>15.6e} {l2_errs[i]:>15.6e}")
     
     # Сводная таблица результатов
     print("\n" + "=" * 80)
