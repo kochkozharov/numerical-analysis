@@ -1,2 +1,10 @@
 __pycache__
 .venv/
+*.log
+*.toc
+*.synctex.gz
+*.out
+*.fdb_latexmk
+*.fls
+*.aux
+*.minted
